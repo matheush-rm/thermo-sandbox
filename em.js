@@ -542,6 +542,7 @@ function drawOverlay(fn){
       oc.strokeStyle=bz<0?'rgba(255,120,110,.85)':'rgba(120,200,255,.85)';oc.beginPath();oc.arc(X,Y,r,0,6.2832);oc.stroke();
       if(bz<0){oc.fillStyle=oc.strokeStyle;oc.beginPath();oc.arc(X,Y,r*.3,0,6.2832);oc.fill();}
       else{const q=r*.6;oc.beginPath();oc.moveTo(X-q,Y-q);oc.lineTo(X+q,Y+q);oc.moveTo(X+q,Y-q);oc.lineTo(X-q,Y+q);oc.stroke();}}}
+  if(view===5) drawAir(oc,sx,sy,dpr,fn); // linhas de vento
   // partículas de corrente
   if(elecLive&&(view===0||view===3)){
     if(fn%8===0)updCurList(ith);
@@ -582,5 +583,5 @@ function drawOverlay(fn){
 }
 
 // ================= inicialização =================
-fitOv();clearAll();PRESETS.tank();updateLegend();
+fitOv();clearAll();PRESETS.tank();setAir(true);setBlast(true);updateLegend();
 requestAnimationFrame(loop);

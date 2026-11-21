@@ -227,6 +227,7 @@ dialog code{font-family:var(--mono);color:var(--txt);font-size:11.5px;background
         <button data-v="2" title="Tecla 3">Temperatura</button>
         <button data-v="3" title="Tecla 4">Elétrico</button>
         <button data-v="4" title="Tecla 5">Magnético</button>
+        <button data-v="5" title="Tecla 6">Ar</button>
       </div>
       <div class="sp"></div>
       <select class="ib" id="sPreset" title="Carregar cenário" style="max-width:150px">
@@ -241,6 +242,7 @@ dialog code{font-family:var(--mono);color:var(--txt);font-size:11.5px;background
         <option value="circuit">Circuito elétrico</option>
         <option value="magnets">Ímãs e limalha</option>
         <option value="life">Jogo da vida</option>
+        <option value="blast">Explosivos e onda de choque</option>
       </select>
       <button class="ib" id="bUndo" title="Desfazer (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg></button>
       <button class="ib" id="bRedo" title="Refazer (Ctrl+Shift+Z)"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></svg></button>
@@ -317,9 +319,15 @@ dialog code{font-family:var(--mono);color:var(--txt);font-size:11.5px;background
       </div>
     </details>
 
+    <details class="panel card sec" open>
+      <summary><h2>Ar</h2></summary>
+      <div class="row"><button class="ib" id="bAir">Ar dinâmico</button><button class="ib" id="bBlast">Onda de choque</button></div>
+      <div class="ctl"><label for="sWind">Força do vento/ciclone</label><output id="oWind"></output><input type="range" id="sWind" min="0" max="100" step="1" value="40"></div>
+      <div class="row"><button class="ib" id="bAirZ">Zerar ar</button></div>
+    </details>
+
     <details class="panel card sec">
       <summary><h2>Clima</h2></summary>
-      <div class="ctl"><label for="sWind">Vento</label><output id="oWind"></output><input type="range" id="sWind" min="-10" max="10" step="0.5" value="0"></div>
       <div class="row"><button class="ib" id="bStorm">Tempestade</button></div>
     </details>
 
@@ -369,12 +377,16 @@ dialog code{font-family:var(--mono);color:var(--txt);font-size:11.5px;background
       <li><b>Tempestade:</b> perfil térmico −40 °C→+3 °C na nuvem; graupel em queda colide com cristais de gelo e troca carga (graupel fica − abaixo de −15 °C e + acima — mecanismo não-indutivo); a corrente ascendente leva os cristais (+) ao topo → estrutura tripolar, campo cresce até romper. Chuva e granizo levam carga ao solo.</li>
       <li><b>Magnetismo:</b> Biot–Savart para correntes no plano (campo ⊙/⊗) e campo de dipolo dos ímãs (NdFeB, M = 950 kA/m) e do ferro magnetizado por indução (χ efetivo com desmagnetização, saturação Ms, perde ferromagnetismo acima de Curie). Limalha e ferrofluido sofrem <code>f = |M|·∇|B|</code>. Força elétrica <code>qE</code> age sobre partículas carregadas.</li>
       <li>⚠️ Simplificações (assumidas): circuito elétrico trata a câmara como placa de 10 cm de espessura, mas ímãs e ferro como colunas longas em profundidade (campo 2D; placa fina daria ~0,03 T e nada seria atraído); ferro magnetizado só pelo campo dos ímãs/correntes (sem interação ferro–ferro); limalha com χ efetivo 5 (grãos alongados); sólidos/líquidos acima de 5000 K vaporizam; sem indução de Faraday nem força de Lorentz em correntes; nuvem e lapse rate comprimidos para caber em 20 m; carga por colisão escalada e a carga do cristal é levada 1–2,5 m acima (corrente ascendente comprimida no tempo); calor do canal de raio multiplicado por 3·10⁵ (a placa fina subestima a energia de uma coluna real, ~10⁵ J/m); σ do plasma limitada a ~10⁴·ε₀/Δt (canal continua equipotencial; com fonte ideal o arco fica limitado a ~MΩ); carga por célula limitada a 2 µC (corona); recombinação τ≈50 ms.</li>
+      <li><b>Ar dinâmico:</b> Euler compressível linearizado em grade 100×100 (células de 20 cm), velocidade nas faces: <code>∂p/∂t = −γP₀∇·u</code>, <code>∂u/∂t = −∇p/ρ − (u·∇)u + g(ρ−ρ₀)/ρ</code>. Fontes: aquecimento de gás <code>Δp = p·ΔT/T</code> (fogo e aquecedores expandem o ar, frio contrai), vaporização (explosão de vapor) e explosões. Compressão/expansão aquece/esfria o gás adiabaticamente <code>T·(p₂/p₁)^((γ−1)/γ)</code>; gás leve/quente sobe por empuxo. O ar transporta fumaça, fogo e calor e arrasta pós e líquidos (acoplamento ∝ 1/√ρ). Sólidos fixos bloqueiam o escoamento; a onda reflete nas paredes e escapa pelo topo aberto. Ferramentas <b>Vento</b> (arrastar) e <b>Ciclone</b> (segurar; Shift inverte).</li>
+      <li><b>Explosivos:</b> C‑4 (2,1 kg TNT/célula) e nitroglicerina (2,4 kg, sensível a choque). A carga conectada detona inteira; pico de sobrepressão por Mills <code>ΔP = 1772/Z³ − 114/Z² + 108/Z</code> kPa, <code>Z = R/W^(1/3)</code>; sólido rompe se <code>2ΔP</code> (reflexão) supera a resistência, e a frente contorna obstáculos. A sobrepressão também entra no campo de ar (onda de choque visível, arremessa detritos) e detona cargas vizinhas por simpatia. Ácido nítrico: dissolve metais (NO₂), inflama orgânicos, reação explosiva com álcool.</li>
+      <li>⚠️ Simplificações (assumidas): velocidade do som do ar reduzida (~0,3 célula grossa/passo) para caber na escala de tempo; fonte térmica escalada por 0,15; injeção de pressão da explosão limitada a 20 atm no campo de ar (o dano de perto usa Mills, sem limite); bola de fogo ~3·∛n+2 células.</li>
       <li>⚠️ Simplificações (assumidas): condução térmica com escala de tempo comprimida; volume 1:1 nas mudanças de fase (cada célula de vapor nova carrega 5% da massa do líquido); sólidos soltos só se movem na vertical.</li>
     </ul>
   </div>
 </dialog>
 
 <script src="sim.js"></script>
+<script src="air.js"></script>
 <script src="em.js"></script>
 </body>
 </html>
