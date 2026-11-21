@@ -6,98 +6,230 @@
 <title>Câmara de Pressão</title>
 <style>
 :root{
-  --bg:#0a0c10; --panel:#11141b; --panel2:#171b24; --line:#232836; --txt:#d7dce6; --mut:#7d8597;
-  --acc:#4cc3ff; --acc2:#ff6b4a; --mono:ui-monospace,"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;
+  --bg:#07090d; --panel:#0e1117; --panel2:#151922; --panel3:#1b2030; --line:#1f2431; --line2:#2b3244;
+  --txt:#e6eaf2; --mut:#9aa3b6; --dim:#646c80;
+  --acc:#4cc3ff; --acc-soft:rgba(76,195,255,.12); --acc2:#ff6b4a;
+  --r:10px; --r-sm:7px;
+  --mono:ui-monospace,"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;
+  --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --shadow:0 1px 0 rgba(255,255,255,.03) inset,0 8px 24px rgba(0,0,0,.35);
 }
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--txt);font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.wrap{max-width:980px;margin:0 auto;padding:12px 16px 40px;display:flex;flex-direction:column;align-items:center;gap:10px}
-header{width:100%;display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
-h1{font-size:16px;margin:0;letter-spacing:.08em;text-transform:uppercase;font-weight:650}
-h1 span{color:var(--acc)}
-.stats{font-family:var(--mono);font-size:11px;color:var(--mut);display:flex;gap:14px;flex-wrap:wrap}
-.stats b{color:var(--txt);font-weight:500}
-.stage{position:relative;width:min(100%, calc(100vh - 330px), 720px);min-width:280px;aspect-ratio:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#000;touch-action:none;cursor:none}
-.stage canvas{width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
-#ov{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;image-rendering:auto}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:13px/1.4 var(--sans)}
+body{background:radial-gradient(1200px 600px at 50% -10%,#101826 0%,var(--bg) 60%) fixed}
+button,select,input{font:inherit;color:inherit}
+
+/* ---------- scrollbars ---------- */
+*{scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:#3d465d;background-clip:padding-box;border:2px solid transparent}
+
+/* ---------- layout ---------- */
+.app{height:100vh;display:grid;grid-template-columns:288px minmax(0,1fr) 312px;gap:10px;padding:10px}
+.panel{background:linear-gradient(180deg,var(--panel) 0%,#0b0e13 100%);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);min-height:0}
+aside{display:flex;flex-direction:column;min-height:0;gap:10px}
+main{display:flex;flex-direction:column;min-width:0;min-height:0;gap:10px}
+
+/* ---------- brand ---------- */
+.brand{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.brand .logo{width:28px;height:28px;border-radius:8px;background:conic-gradient(from 200deg,#4cc3ff,#7a5cff,#ff6b4a,#4cc3ff);display:grid;place-items:center}
+.brand .logo::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--bg)}
+.brand h1{font-size:13px;margin:0;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+.brand h1 span{color:var(--acc)}
+.brand small{display:block;color:var(--mut);font-size:10.5px;letter-spacing:.02em;font-weight:500;text-transform:none}
+
+/* ---------- materiais ---------- */
+.mats{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:10px 12px 0;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);font-weight:650}
+.search{margin:8px 12px 0;position:relative}
+.search input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r-sm);padding:7px 10px 7px 30px;outline:none;transition:border-color .15s}
+.search input:focus{border-color:var(--acc)}
+.search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:14px;height:14px;stroke:var(--mut)}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:8px 12px}
+.tab{border:1px solid var(--line);background:transparent;color:var(--mut);border-radius:999px;padding:3px 9px;font-size:11px;cursor:pointer;transition:all .15s}
+.tab:hover{color:var(--txt);border-color:var(--line2)}
+.tab.on{background:var(--acc-soft);border-color:rgba(76,195,255,.45);color:#fff}
+.grid{flex:1;overflow:auto;padding:2px 12px 12px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;align-content:start}
+.grid .gh{grid-column:1/-1;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);padding:6px 2px 0;font-weight:650}
+.it{position:relative;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;transition:transform .12s,border-color .15s,background .15s;min-width:0}
+.it:hover{border-color:var(--line2);background:var(--panel3);transform:translateY(-1px)}
+.it.on{border-color:var(--acc);background:linear-gradient(180deg,#12263a,#0f1a28);box-shadow:0 0 0 1px var(--acc) inset,0 0 18px rgba(76,195,255,.15)}
+.it svg{width:28px;height:28px}
+.it .nm{font-size:11px;line-height:1.15;text-align:center;overflow:hidden;text-overflow:ellipsis;max-width:100%;white-space:nowrap}
+.it .sb{font-family:var(--mono);font-size:9px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.empty{grid-column:1/-1;color:var(--mut);text-align:center;padding:20px 0;font-size:12px}
+.sel{border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:10px;align-items:flex-start}
+.sel .ic{flex:none;width:36px;height:36px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center}
+.sel .ic svg{width:26px;height:26px}
+.sel .t{font-weight:650;font-size:12.5px}
+.sel .d{color:var(--mut);font-size:11px;line-height:1.35;margin-top:2px}
+
+/* ---------- topbar ---------- */
+.top{display:flex;align-items:center;gap:8px;padding:8px;flex-wrap:wrap}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r-sm);padding:2px;gap:2px}
+.seg button{background:transparent;color:var(--mut);border:0;padding:5px 10px;border-radius:5px;cursor:pointer;font-size:12px;transition:all .15s;display:flex;align-items:center;gap:6px}
+.seg button:hover{color:var(--txt)}
+.seg button.on{background:var(--panel3);color:#fff;box-shadow:0 0 0 1px var(--line2) inset}
+.seg button kbd{font-family:var(--mono);font-size:9px;color:var(--dim);border:1px solid var(--line2);border-radius:3px;padding:0 3px}
+.sp{flex:1}
+.ib{height:30px;min-width:30px;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r-sm);padding:0 9px;cursor:pointer;color:var(--txt);font-size:12px;transition:all .15s;white-space:nowrap}
+.ib:hover{border-color:var(--line2);background:var(--panel3)}
+.ib.on{border-color:rgba(76,195,255,.55);background:var(--acc-soft);color:#fff}
+.ib svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ib.primary{background:var(--acc);border-color:var(--acc);color:#04121c;font-weight:600}
+.ib.primary:hover{filter:brightness(1.1)}
+.ib.danger:hover{border-color:rgba(255,107,74,.6);color:#ffb3a3}
+select.ib{appearance:none;padding-right:26px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237b8396' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center}
+select option{background:var(--panel2)}
+
+/* ---------- workspace ---------- */
+.work{flex:1;min-height:0;display:flex;gap:10px}
+.rail{display:flex;flex-direction:column;gap:4px;padding:6px;align-items:center;overflow-y:auto}
+.rail .tl{width:40px;height:40px;border-radius:8px;border:1px solid transparent;background:transparent;display:grid;place-items:center;cursor:pointer;position:relative;transition:all .15s}
+.rail .tl svg{width:22px;height:22px}
+.rail .tl:hover{background:var(--panel3);border-color:var(--line2)}
+.rail .tl.on{background:var(--acc-soft);border-color:rgba(76,195,255,.55)}
+.rail .tl.on::before{content:"";position:absolute;left:-7px;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--acc)}
+.rail hr{width:24px;border:0;border-top:1px solid var(--line);margin:4px 0}
+.rail .cur{width:40px;height:40px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);display:grid;place-items:center}
+.rail .cur svg{width:24px;height:24px}
+.tip{position:fixed;z-index:50;pointer-events:none;background:#000c;border:1px solid var(--line2);border-radius:6px;padding:5px 8px;font-size:11.5px;max-width:260px;opacity:0;transition:opacity .12s;backdrop-filter:blur(6px)}
+.tip b{display:block;font-size:12px}
+.tip span{color:var(--mut)}
+.stagebox{flex:1;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center;container-type:size}
+.frame{display:flex;gap:6px;height:min(100cqh,calc(100cqw - 46px))}
+.stage{position:relative;height:100%;aspect-ratio:1;border:1px solid var(--line2);border-radius:var(--r);overflow:hidden;background:#000;touch-action:none;cursor:none;box-shadow:0 0 0 1px rgba(0,0,0,.6),0 20px 60px rgba(0,0,0,.5)}
+.stage canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+#cv{image-rendering:pixelated;image-rendering:crisp-edges;transform-origin:0 0}
+#ov{pointer-events:none}
 #flash{position:absolute;inset:0;pointer-events:none;background:#dfe4ff;opacity:0;mix-blend-mode:screen}
-#brush{position:absolute;pointer-events:none;border:1px solid rgba(255,255,255,.7);border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.6);transform:translate(-50%,-50%);display:none}
-#readout{position:absolute;left:8px;top:8px;pointer-events:none;background:rgba(8,10,14,.78);border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:6px 8px;font-family:var(--mono);font-size:11px;line-height:1.45;min-width:170px;backdrop-filter:blur(2px)}
-#readout .t{color:#fff;font-weight:600;font-family:system-ui,sans-serif;font-size:12px}
-#readout .k{color:var(--mut)}
-.ruler{position:absolute;right:0;top:0;bottom:0;width:34px;pointer-events:none;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.45)}
-.ruler div{position:absolute;right:4px;transform:translateY(-50%);border-right:6px solid rgba(255,255,255,.25);padding-right:3px}
-.bar{width:100%;display:grid;grid-template-columns:auto 1fr;gap:10px 16px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
-.seg{display:flex;border:1px solid var(--line);border-radius:5px;overflow:hidden}
-.seg button{background:transparent;color:var(--mut);border:0;padding:6px 11px;font:inherit;cursor:pointer}
-.seg button+button{border-left:1px solid var(--line)}
-.seg button.on{background:var(--panel2);color:#fff;box-shadow:inset 0 -2px 0 var(--acc)}
-.legend{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;color:var(--mut);min-width:0}
-.legend .grad{flex:1;height:10px;border-radius:2px;min-width:80px;border:1px solid var(--line)}
-.ctrls{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
-.ctrl{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut)}
-.ctrl input[type=range]{width:96px;accent-color:var(--acc)}
-.ctrl output{font-family:var(--mono);font-size:11px;color:var(--txt);min-width:44px}
-.btn{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:5px;padding:5px 10px;font:inherit;cursor:pointer}
-.btn:hover{border-color:#3a4256}
-.btn.on{border-color:var(--acc);color:#fff;box-shadow:inset 0 -2px 0 var(--acc)}
-select.btn{padding:5px 6px}
-.palette{width:100%;display:flex;flex-direction:column;gap:8px}
-.grp{display:flex;gap:8px;align-items:flex-start}
-.grp h3{writing-mode:vertical-rl;transform:rotate(180deg);margin:0;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);font-weight:600;padding:4px 0;border-left:1px solid var(--line);padding-left:4px;align-self:stretch;text-align:center}
-.items{display:flex;flex-wrap:wrap;gap:6px;flex:1}
-.it{width:84px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 4px 5px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:var(--txt);font:inherit}
-.it:hover{border-color:#3a4256;background:var(--panel2)}
-.it.on{border-color:var(--acc);background:#132030;box-shadow:0 0 0 1px var(--acc) inset}
-.it svg{width:30px;height:30px}
-.it .nm{font-size:11px;line-height:1.15;text-align:center}
-.it .sb{font-family:var(--mono);font-size:9px;color:var(--mut)}
-details{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--mut);font-size:12px}
-details summary{cursor:pointer;color:var(--txt)}
-details li{margin:3px 0}
-details code{font-family:var(--mono);color:var(--txt);font-size:11px}
-@media (max-width:560px){.bar{grid-template-columns:1fr}.it{width:72px}}
+#brush{position:absolute;pointer-events:none;border:1px solid rgba(255,255,255,.75);border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.55);transform:translate(-50%,-50%);display:none}
+.stage.pan{cursor:grab}.stage.pan.drag{cursor:grabbing}
+.ruler{position:relative;width:40px;font-family:var(--mono);font-size:9.5px;color:var(--mut)}
+.ruler div{position:absolute;left:0;transform:translateY(-50%);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.ruler div::before{content:"";width:6px;border-top:1px solid var(--line2)}
+.ruler .mn::before{width:3px}
+
+/* ---------- status bar ---------- */
+.status{display:flex;align-items:center;gap:14px;padding:6px 12px;font-family:var(--mono);font-size:11px;color:var(--mut);flex-wrap:wrap}
+.stats{display:flex;gap:14px;flex-wrap:wrap}
+.stats b{color:var(--txt);font-weight:500}
+.zoom{display:flex;align-items:center;gap:4px;margin-left:auto}
+.zoom .ib{height:26px;min-width:26px;padding:0 6px}
+.zoom output{min-width:44px;text-align:center;color:var(--txt)}
+
+/* ---------- right side ---------- */
+.card{padding:12px}
+.card h2{margin:0 0 8px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);font-weight:650;display:flex;align-items:center;gap:8px}
+.card h2 .pill{margin-left:auto;font-size:9.5px;letter-spacing:.04em;text-transform:none;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:1px 7px;color:var(--mut);font-weight:500}
+.right{overflow-y:auto;padding-right:2px}
+.right>.panel{flex:none}
+.card{background:linear-gradient(180deg,#111520 0%,#0d1018 100%)}
+.ctl label{color:#d4dae6}
+.insp .nm{font-size:15px;font-weight:650;display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.insp .nm i{width:10px;height:10px;border-radius:3px;display:inline-block;box-shadow:0 0 0 1px rgba(255,255,255,.15) inset}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);font-family:var(--mono);font-size:11.5px;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+.kv>span{padding:4px 8px;background:var(--panel2)}
+.kv>span:nth-child(4n+3),.kv>span:nth-child(4n+4){background:#121620}
+.kv .k{color:#aab3c5}
+.kv .v{text-align:right;color:#f4f6fb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kv .v small{color:var(--mut)}
+.hint{color:var(--mut);font-size:11.5px}
+.legend{display:flex;flex-direction:column;gap:5px;font-family:var(--mono);font-size:10px;color:var(--mut)}
+.legend .grad{height:10px;border-radius:5px;border:1px solid var(--line)}
+.legend .ends{display:flex;justify-content:space-between;gap:8px}
+.ctl{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;margin-bottom:9px}
+.ctl label{font-size:12px}
+.ctl output{font-family:var(--mono);font-size:11px;color:var(--acc);text-align:right}
+.ctl input,.ctl .seg{grid-column:1/-1}
+.ctl .seg button{flex:1;justify-content:center}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;margin:0;cursor:pointer;--p:50%}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:linear-gradient(90deg,var(--acc) var(--p),var(--line2) var(--p))}
+input[type=range]::-moz-range-track{height:4px;border-radius:4px;background:var(--line2)}
+input[type=range]::-moz-range-progress{height:4px;border-radius:4px;background:var(--acc)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid var(--acc);margin-top:-5px;box-shadow:0 0 0 4px rgba(76,195,255,.12);transition:box-shadow .15s}
+input[type=range]::-moz-range-thumb{width:10px;height:10px;border-radius:50%;background:#fff;border:3px solid var(--acc)}
+input[type=range]:hover::-webkit-slider-thumb{box-shadow:0 0 0 6px rgba(76,195,255,.2)}
+.row{display:flex;gap:6px;flex-wrap:wrap}
+.row .ib{flex:1}
+details.sec>summary{list-style:none;cursor:pointer}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary h2::after{content:"";margin-left:auto;width:7px;height:7px;border-right:1.5px solid var(--mut);border-bottom:1.5px solid var(--mut);transform:rotate(45deg);transition:transform .15s}
+details.sec:not([open])>summary h2{margin:0}
+details.sec:not([open])>summary h2::after{transform:rotate(-45deg)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:11.5px;color:var(--mut)}
+.keys kbd{font-family:var(--mono);font-size:10px;color:var(--txt);background:var(--panel2);border:1px solid var(--line2);border-bottom-width:2px;border-radius:4px;padding:0 5px;justify-self:start}
+
+.ib:disabled{opacity:.35;cursor:default;pointer-events:none}
+.vsep{width:1px;height:20px;background:var(--line2);margin:0 2px}
+.stage.drop{outline:2px dashed var(--acc);outline-offset:-6px}
+.toast{position:fixed;left:50%;bottom:64px;transform:translate(-50%,20px);background:#0f1724;border:1px solid rgba(76,195,255,.5);color:#fff;padding:8px 14px;border-radius:8px;font-size:12.5px;opacity:0;pointer-events:none;transition:all .2s;z-index:60;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.err{border-color:rgba(255,107,74,.7)}
+/* ---------- dialog ---------- */
+dialog{background:var(--panel);color:var(--txt);border:1px solid var(--line2);border-radius:14px;max-width:min(860px,92vw);max-height:86vh;padding:0;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+dialog::backdrop{background:rgba(3,5,8,.7);backdrop-filter:blur(3px)}
+dialog .hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+dialog .hd h2{margin:0;font-size:14px}
+dialog .bd{padding:6px 22px 18px;color:#b9c0cf;font-size:12.5px;line-height:1.55}
+dialog li{margin:6px 0}
+dialog code{font-family:var(--mono);color:var(--txt);font-size:11.5px;background:var(--panel2);padding:0 4px;border-radius:3px}
+
+/* ---------- responsive ---------- */
+@media (max-width:1180px){
+  .app{grid-template-columns:260px minmax(0,1fr);grid-template-rows:minmax(560px,calc(100vh - 20px)) auto;height:auto;min-height:100vh}
+  .right{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));align-items:start;overflow:visible}
+}
+@media (max-width:760px){
+  .app{grid-template-columns:1fr;grid-template-rows:auto}
+  aside.left{order:2;max-height:60vh}
+  main{order:1;height:auto}
+  .work{flex-direction:column}
+  .rail{flex-direction:row;overflow-x:auto}
+  .rail hr{width:1px;height:24px;border-top:0;border-left:1px solid var(--line)}
+  .rail .tl.on::before{display:none}
+  .stagebox{container-type:inline-size}
+  .frame{height:auto;width:100%}
+  .stage{width:calc(100% - 46px);height:auto}
+  .seg button kbd{display:none}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>Câmara de <span>Pressão</span></h1>
-    <div class="stats" id="stats"></div>
-  </header>
+<div class="app">
 
-  <div class="stage" id="stage">
-    <canvas id="cv" width="200" height="200"></canvas>
-    <canvas id="ov"></canvas>
-    <div id="flash"></div>
-    <div id="brush"></div>
-    <div class="ruler" id="ruler"></div>
-    <div id="readout"></div>
-  </div>
-
-  <div class="bar">
-    <div class="seg" id="views">
-      <button data-v="0">Material</button>
-      <button data-v="1" class="on">Pressão</button>
-      <button data-v="2">Temperatura</button>
-      <button data-v="3">Elétrico</button>
-      <button data-v="4">Magnético</button>
+  <!-- ===== esquerda: materiais ===== -->
+  <aside class="left">
+    <div class="panel brand">
+      <div class="logo"></div>
+      <h1>Câmara de <span>Pressão</span><small>20 m · 200×200 células</small></h1>
     </div>
-    <div class="legend"><span id="lgLo">0</span><div class="grad" id="lgGrad"></div><span id="lgHi">—</span></div>
-    <div class="ctrls">
-      <label class="ctrl">Pincel <input type="range" id="sBrush" min="0" max="20" value="4"><output id="oBrush"></output></label>
-      <label class="ctrl">Gravidade <input type="range" id="sGrav" min="0" max="10" step="0.1" value="1"><output id="oGrav"></output></label>
-      <label class="ctrl">Resistência <input type="range" id="sHeater" min="100" max="1400" step="10" value="500"><output id="oHeater"></output></label>
-      <label class="ctrl">Potência <input type="range" id="sPow" min="0.5" max="20" step="0.5" value="4"><output id="oPow"></output></label>
-      <label class="ctrl">Passos/quadro <input type="range" id="sSpeed" min="1" max="4" value="2"><output id="oSpeed"></output></label>
-      <label class="ctrl">Tensão <input type="range" id="sVolt" min="0" max="80" step="1" value="20"><output id="oVolt"></output></label>
-      <label class="ctrl">Carga <input type="range" id="sChg" min="-90" max="-40" step="1" value="-70"><output id="oChg"></output></label>
-      <label class="ctrl">Polo N <select class="btn" id="sPole"><option value="0">↑</option><option value="1">→</option><option value="2">↓</option><option value="3">←</option></select></label>
-      <label class="ctrl">Vento <input type="range" id="sWind" min="-10" max="10" step="0.5" value="0"><output id="oWind"></output></label>
-      <button class="btn" id="bStorm">Tempestade: desligada</button>
-      <button class="btn" id="bPause">Pausar</button>
-      <button class="btn" id="bLid">Tampa: aberta</button>
-      <select class="btn" id="sPreset">
+    <div class="panel mats">
+      <div class="ph">Materiais <span id="matCount"></span></div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="matSearch" type="search" placeholder="Buscar material…  ( / )" autocomplete="off">
+      </div>
+      <div class="tabs" id="tabs"></div>
+      <div class="grid" id="palette"></div>
+      <div class="sel" id="selInfo"></div>
+    </div>
+  </aside>
+
+  <!-- ===== centro ===== -->
+  <main>
+    <div class="panel top">
+      <div class="seg" id="views">
+        <button data-v="0" title="Tecla 1">Material</button>
+        <button data-v="1" class="on" title="Tecla 2">Pressão</button>
+        <button data-v="2" title="Tecla 3">Temperatura</button>
+        <button data-v="3" title="Tecla 4">Elétrico</button>
+        <button data-v="4" title="Tecla 5">Magnético</button>
+      </div>
+      <div class="sp"></div>
+      <select class="ib" id="sPreset" title="Carregar cenário" style="max-width:150px">
         <option value="">Cenário…</option>
         <option value="tank">Tanque profundo</option>
         <option value="cooker">Panela de pressão</option>
@@ -108,14 +240,119 @@ details code{font-family:var(--mono);color:var(--txt);font-size:11px}
         <option value="circuit">Circuito elétrico</option>
         <option value="magnets">Ímãs e limalha</option>
       </select>
-      <button class="btn" id="bClear">Limpar</button>
+      <button class="ib" id="bUndo" title="Desfazer (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg></button>
+      <button class="ib" id="bRedo" title="Refazer (Ctrl+Shift+Z)"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></svg></button>
+      <span class="vsep"></span>
+      <button class="ib" id="bStep" title="Avançar um passo (.)"><svg viewBox="0 0 24 24"><path d="M6 5l9 7-9 7z" fill="currentColor"/><path d="M18 5v14"/></svg></button>
+      <button class="ib primary" id="bPause" title="Pausar / continuar (Espaço)"></button>
+      <button class="ib danger" id="bClear" title="Limpar câmara"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
     </div>
-  </div>
 
-  <div class="palette" id="palette"></div>
+    <div class="work">
+      <div class="panel rail" id="rail"></div>
+      <div class="stagebox">
+        <div class="frame">
+          <div class="stage" id="stage">
+            <canvas id="cv" width="200" height="200"></canvas>
+            <canvas id="ov"></canvas>
+            <div id="flash"></div>
+            <div id="brush"></div>
+          </div>
+          <div class="ruler" id="ruler"></div>
+        </div>
+      </div>
+    </div>
 
-  <details>
-    <summary>Física do modelo</summary>
+    <div class="panel status">
+      <div class="stats" id="stats"></div>
+      <div class="zoom">
+        <button class="ib" id="bSave" title="Salvar cenário (Ctrl+S)"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
+        <button class="ib" id="bLoad" title="Abrir cenário (Ctrl+O) — ou arraste o arquivo para a câmara"><svg viewBox="0 0 24 24"><path d="M12 20V9M7 14l5-5 5 5M5 4h14"/></svg></button>
+        <button class="ib" id="bShot" title="Captura PNG da vista (P)"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+        <input type="file" id="fileIn" accept=".camara" hidden>
+        <span class="vsep"></span>
+        <button class="ib" id="zOut" title="Afastar (−)"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <output id="zLvl">100%</output>
+        <button class="ib" id="zIn" title="Aproximar (+)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="ib" id="zFocus" title="Focar no objeto selecionado (F)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg></button>
+        <button class="ib" id="zFit" title="Ver câmara inteira (0)"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/></svg></button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ===== direita: inspetor + controles ===== -->
+  <aside class="right">
+    <div class="panel card insp">
+      <h2>Inspetor <span class="pill" id="inspMode">cursor</span></h2>
+      <div id="readout"></div>
+    </div>
+
+    <div class="panel card">
+      <h2>Escala <span class="pill" id="lgView"></span></h2>
+      <div class="legend"><div class="grad" id="lgGrad"></div><div class="ends"><span id="lgLo">0</span><span id="lgHi">—</span></div></div>
+    </div>
+
+    <details class="panel card sec" open>
+      <summary><h2>Pincel &amp; ambiente</h2></summary>
+      <div class="ctl"><label for="sBrush">Pincel</label><output id="oBrush"></output><input type="range" id="sBrush" min="0" max="20" value="4"></div>
+      <div class="ctl"><label for="sGrav">Gravidade</label><output id="oGrav"></output><input type="range" id="sGrav" min="0" max="10" step="0.1" value="1"></div>
+      <div class="ctl"><label for="sSpeed">Velocidade</label><output id="oSpeed"></output><input type="range" id="sSpeed" min="0" max="6" value="4"></div>
+      <div class="row"><button class="ib" id="bLid">Tampa aberta</button></div>
+    </details>
+
+    <details class="panel card sec" open>
+      <summary><h2>Térmico</h2></summary>
+      <div class="ctl"><label for="sHeater">Resistência</label><output id="oHeater"></output><input type="range" id="sHeater" min="100" max="1400" step="10" value="500"></div>
+      <div class="ctl"><label for="sPow">Potência aquecer/resfriar</label><output id="oPow"></output><input type="range" id="sPow" min="0.5" max="20" step="0.5" value="4"></div>
+    </details>
+
+    <details class="panel card sec">
+      <summary><h2>Eletromagnetismo</h2></summary>
+      <div class="ctl"><label for="sVolt">Tensão da fonte</label><output id="oVolt"></output><input type="range" id="sVolt" min="0" max="80" step="1" value="20"></div>
+      <div class="ctl"><label for="sChg">Carga por aplicação</label><output id="oChg"></output><input type="range" id="sChg" min="-90" max="-40" step="1" value="-70"></div>
+      <div class="ctl"><label>Polo N do ímã</label><output></output>
+        <div class="seg" id="sPole"><button data-d="0" class="on">↑</button><button data-d="1">→</button><button data-d="2">↓</button><button data-d="3">←</button></div>
+      </div>
+    </details>
+
+    <details class="panel card sec">
+      <summary><h2>Clima</h2></summary>
+      <div class="ctl"><label for="sWind">Vento</label><output id="oWind"></output><input type="range" id="sWind" min="-10" max="10" step="0.5" value="0"></div>
+      <div class="row"><button class="ib" id="bStorm">Tempestade</button></div>
+    </details>
+
+    <details class="panel card sec">
+      <summary><h2>Atalhos</h2></summary>
+      <div class="keys">
+        <kbd>Esq.</kbd><span>desenhar</span>
+        <kbd>Dir.</kbd><span>apagar</span>
+        <kbd>Shift</kbd><span>sobrescrever</span>
+        <kbd>Roda</kbd><span>zoom no cursor</span>
+        <kbd>Meio / Alt</kbd><span>arrastar vista</span>
+        <kbd>F</kbd><span>focar objeto sob cursor</span>
+        <kbd>0</kbd><span>ver tudo</span>
+        <kbd>Ctrl+clique</kbd><span>fixar inspetor</span>
+        <kbd>Espaço</kbd><span>pausar</span>
+        <kbd>.</kbd><span>avançar um passo</span>
+        <kbd>Ctrl+Z / Y</kbd><span>desfazer / refazer</span>
+        <kbd>Ctrl+S / O</kbd><span>salvar / abrir cenário</span>
+        <kbd>P</kbd><span>captura PNG</span>
+        <kbd>B L R E G</kbd><span>pincel, linha, retângulo, elipse, balde</span>
+        <kbd>1–5</kbd><span>visualização</span>
+        <kbd>[ ]</kbd><span>tamanho do pincel</span>
+        <kbd>/</kbd><span>buscar material</span>
+      </div>
+      <div class="row" style="margin-top:10px"><button class="ib" id="bHelp">Física do modelo</button></div>
+    </details>
+  </aside>
+</div>
+
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast"></div>
+
+<dialog id="help">
+  <div class="hd"><h2>Física do modelo</h2><button class="ib" id="bHelpX">Fechar</button></div>
+  <div class="bd">
     <ul>
       <li><b>Escala:</b> 200×200 células, 1 célula = 10 cm → câmara de 20 m. Pressão em Pa absolutos (atmosfera = 101,325 kPa no topo aberto).</li>
       <li><b>Pressão hidrostática:</b> busca em largura a partir da atmosfera somando <code>ρ·g·Δh</code>; vale para vasos comunicantes e sinos de mergulho. Regiões seladas por sólidos fixos têm pressão própria.</li>
@@ -131,9 +368,8 @@ details code{font-family:var(--mono);color:var(--txt);font-size:11px}
       <li>⚠️ Simplificações (assumidas): circuito elétrico trata a câmara como placa de 10 cm de espessura, mas ímãs e ferro como colunas longas em profundidade (campo 2D; placa fina daria ~0,03 T e nada seria atraído); ferro magnetizado só pelo campo dos ímãs/correntes (sem interação ferro–ferro); limalha com χ efetivo 5 (grãos alongados); sólidos/líquidos acima de 5000 K vaporizam; sem indução de Faraday nem força de Lorentz em correntes; nuvem e lapse rate comprimidos para caber em 20 m; carga por colisão escalada e a carga do cristal é levada 1–2,5 m acima (corrente ascendente comprimida no tempo); calor do canal de raio multiplicado por 3·10⁵ (a placa fina subestima a energia de uma coluna real, ~10⁵ J/m); σ do plasma limitada a ~10⁴·ε₀/Δt (canal continua equipotencial; com fonte ideal o arco fica limitado a ~MΩ); carga por célula limitada a 2 µC (corona); recombinação τ≈50 ms.</li>
       <li>⚠️ Simplificações (assumidas): condução térmica com escala de tempo comprimida; volume 1:1 nas mudanças de fase (cada célula de vapor nova carrega 5% da massa do líquido); sólidos soltos só se movem na vertical.</li>
     </ul>
-    <p>Esquerdo: desenhar · Direito: apagar · Shift: sobrescrever · Espaço: pausar · 1–5: visualização</p>
-  </details>
-</div>
+  </div>
+</dialog>
 
 <script src="sim.js"></script>
 <script src="em.js"></script>

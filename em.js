@@ -457,7 +457,7 @@ function emReset(){
 const ov=document.getElementById('ov'),oc=ov.getContext('2d'),flashEl=document.getElementById('flash');
 let ovW=1,ovH=1,dpr=1;
 function fitOv(){dpr=Math.min(2,devicePixelRatio||1);const r=stage.getBoundingClientRect();ovW=Math.max(1,Math.round(r.width*dpr));ovH=Math.max(1,Math.round(r.height*dpr));ov.width=ovW;ov.height=ovH;}
-addEventListener('resize',fitOv);
+new ResizeObserver(fitOv).observe(stage);
 const OCC=CW,occ=new Int32Array(OCC*OCC),Exc=new Float32Array(CN),Eyc=new Float32Array(CN),Vc=new Float32Array(CN),smp=[0,0];
 let lines=[],linesView=-1,lineMax=1;
 function sampleXY(fx,fy,x,y){
@@ -517,7 +517,8 @@ function updCurList(ith){curN=0;for(let i=0;i<N;i++){if(!dom[i])continue;const a
   if(a>ith){if(curN<curList.length)curList[curN++]=i;else curList[(rnd()*curN)|0]=i;}}}
 function drawOverlay(fn){
   oc.setTransform(1,0,0,1,0,0);oc.clearRect(0,0,ovW,ovH);oc.globalCompositeOperation='source-over';
-  const sx=ovW/W,sy=ovH/H,cs=CF*sx,ith=Math.max(1e-3,iMax*1e-4);
+  const sx=ovW/W,sy=ovH/H,cs=CF*sx,ith=Math.max(1e-3,iMax*1e-4),dpr0=dpr;
+  oc.setTransform(Z,0,0,Z,-ZX*sx*Z,-ZY*sy*Z);dpr=dpr0/Z; // vista com zoom; espessuras constantes na tela
   // linhas de campo
   const wantB=view===4&&magLive,wantE=view===3&&elecLive;
   if(wantB||wantE){
@@ -562,6 +563,20 @@ function drawOverlay(fn){
     oc.globalCompositeOperation='source-over';}
   // clarão (energia dissipada em plasma neste quadro)
   if(ePl>2e3){const f=Math.min(1,.25+Math.log10(ePl/2e3)*.25);if(f>flash)flash=f;if(strikeCD<=0&&f>.3){nStrikes++;strikeCD=15;}}
+  // prévia de forma (linha/retângulo/elipse)
+  if(shapePrev){const sp=shapePrev,xa=Math.min(sp.x0,sp.x1),ya=Math.min(sp.y0,sp.y1),w=Math.abs(sp.x1-sp.x0)+1,h=Math.abs(sp.y1-sp.y0)+1;
+    oc.lineWidth=1.5*dpr;oc.setLineDash([4*dpr,3*dpr]);oc.strokeStyle='rgba(255,255,255,.9)';oc.fillStyle='rgba(76,195,255,.18)';oc.beginPath();
+    if(sp.md==='line'){oc.lineWidth=Math.max(1.5*dpr,(brush*2+1)*sx);oc.strokeStyle='rgba(76,195,255,.45)';oc.setLineDash([]);oc.lineCap='round';oc.moveTo((sp.x0+.5)*sx,(sp.y0+.5)*sy);oc.lineTo((sp.x1+.5)*sx,(sp.y1+.5)*sy);oc.stroke();oc.lineCap='butt';}
+    else{if(sp.md==='ell')oc.ellipse((xa+w/2)*sx,(ya+h/2)*sy,w/2*sx,h/2*sy,0,0,6.2832);else oc.rect(xa*sx,ya*sy,w*sx,h*sy);
+      if(sp.md!=='rectO')oc.fill();oc.stroke();}
+    oc.setLineDash([]);
+    const lbl=sp.md==='line'?(Math.hypot(w-1,h-1)*DX).toFixed(1)+' m':(w*DX).toFixed(1)+' × '+(h*DX).toFixed(1)+' m';
+    oc.font=(11*dpr)+'px ui-monospace,monospace';oc.fillStyle='rgba(0,0,0,.65)';const tw=oc.measureText(lbl).width;
+    const lx=(Math.max(sp.x0,sp.x1)+1)*sx+4*dpr,ly=(Math.max(sp.y0,sp.y1)+1)*sy+4*dpr;oc.fillRect(lx,ly,tw+8*dpr,16*dpr);oc.fillStyle='#fff';oc.fillText(lbl,lx+4*dpr,ly+12*dpr);}
+  // célula fixada no inspetor
+  if(pinI>=0){const x=pinI%W,y=pinI/W|0;oc.strokeStyle='rgba(76,195,255,.95)';oc.lineWidth=1.5*dpr;
+    const pd=Math.max(sx,6*dpr);oc.strokeRect((x+.5)*sx-pd/2-2*dpr,(y+.5)*sy-pd/2-2*dpr,pd+4*dpr,pd+4*dpr);}
+  dpr=dpr0;
   ePl=0;eJoule=0;strikeCD--;flash*=.8;
   flashEl.style.opacity=flash>.01?(flash*.35).toFixed(3):'0';
 }
