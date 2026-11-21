@@ -6,7 +6,7 @@ const AR=0,PAREDE=1,AGUA=2,SALMOURA=3,OLEO=4,MERCURIO=5,MEL=6,ALCOOL=7,LAVA=8,N2
   ACO=12,CONCRETO=13,VIDRO=14,LATA=15,BASALTO=16,RESIST=17,MADEIRA=18,MADEIRAE=19,ISOPOR=20,ISOPORC=21,
   GELO=22,HGS=23,AREIA=24,SAL=25,CACOS=26,ENTULHO=27,SUCATA=28,CINZA=29,VAPOR=30,VALC=31,N2G=32,VHG=33,
   FUMACA=34,FOGO=35,HELIO=36,COBRE=37,COBREF=38,NICROMO=39,IMA=40,LIMALHA=41,FERROFL=42,FONTEP=43,FONTEN=44,
-  TERRA=45,NUVEM=46,GRANIZO=47,NM=48;
+  TERRA=45,NUVEM=46,GRANIZO=47,VIDA=48,NM=49;
 const ERASE=100,HEAT=101,COOL=102,CHGP=103,CHGN=104,FLIP=105,SPARK=106;
 const CONT={[HEAT]:1,[COOL]:1,[CHGP]:1,[CHGN]:1,[SPARK]:1}; // ferramentas aplicadas continuamente
 
@@ -59,6 +59,7 @@ D[FONTEP]   ={n:'Polo + (fonte)',kind:FIX,rho:8000,k:50,C:3.5,col:[214,52,48],va
 D[FONTEN]   ={n:'Polo − (fonte)',kind:FIX,rho:8000,k:50,C:3.5,col:[48,92,222],var:4};
 D[TERRA]    ={n:'Terra (aterramento)',kind:FIX,rho:2000,k:1,C:2,col:[72,98,58],var:10};
 D[NUVEM]    ={n:'Nuvem',kind:GAS,M:.029,gam:1.4,cpg:1005,k:.026,col:[196,202,214],a:.8,var:14,hi:[2,373.15,40660,VAPOR,30,647]};
+D[VIDA]     ={n:'Vida (Conway)',kind:FIX,rho:1050,k:.5,C:3.6,str:400e3,crush:CINZA,col:[70,214,110],var:24,ign:450,fl:20,fsp:.5};
 D[GRANIZO]  ={n:'Granizo (graupel)',kind:POW,rho:700,k:2,C:1.4,col:[226,236,246],var:14,hi:[1,273.15,0,AGUA,80],T0:258};
 
 // elétrico: [σ condutividade S/m, εr permissividade relativa, rigidez dielétrica MV/m (0 = não rompe)]
@@ -70,7 +71,7 @@ const EL={
  [AREIA]:[1e-9,4,3],[SAL]:[1e-12,6,10],[CACOS]:[1e-12,6,10],[ENTULHO]:[1e-7,5,3],[SUCATA]:[1e5,1,0],[CINZA]:[1e-8,3,3],
  [VAPOR]:[1e-14,1,2.7],[VALC]:[1e-14,1,3],[N2G]:[1e-15,1,3.4],[VHG]:[1e-14,1,1],[FUMACA]:[1e-13,1,2.5],[FOGO]:[1e-4,1,.6],[HELIO]:[1e-15,1,.45],
  [COBRE]:[5.96e7,1,0],[COBREF]:[5e6,1,0],[NICROMO]:[9.1e5,1,0],[IMA]:[6.7e5,1,0],[LIMALHA]:[1e3,1,0],[FERROFL]:[1e-8,5,10],
- [FONTEP]:[6e7,1,0],[FONTEN]:[6e7,1,0],[TERRA]:[6e7,1,0],[NUVEM]:[1e-13,1,1],[GRANIZO]:[1e-9,3.2,10]
+ [FONTEP]:[6e7,1,0],[FONTEN]:[6e7,1,0],[TERRA]:[6e7,1,0],[NUVEM]:[1e-13,1,1],[GRANIZO]:[1e-9,3.2,10],[VIDA]:[.5,50,0]
 };
 // coef. térmico da resistividade (1/K)
 const ALPHA={[COBRE]:.0039,[LATA]:.0039,[ACO]:.005,[NICROMO]:.0004,[MERCURIO]:.0009,[IMA]:.001,[ALUF]:.001,[COBREF]:.001,[ACOF]:.001};
@@ -384,6 +385,32 @@ function fire(i){
     if(kind[mat[i]]===GAS) gd[i]=P[i]*molar[mat[i]]/(RG*T[i]);
   } else life[i]=l;
 }
+// ================= vida (Conway B3/S23) acoplada ao mundo =================
+// nasce só em ar habitável; morre por calor, frio, fogo (queima), raio/plasma, choque elétrico, afogamento e pressão (str)
+const LIFE_TMIN=268.15,LIFE_TMAX=333.15,LIFE_IMAX=2e-2,lifeN=new Uint8Array(N);
+let lifeEvery=3,lifeTick=0;
+function lifeKill(i){mat[i]=CINZA;lat[i]=0;life[i]=0;st[i]=0;const p=P[i]>0?P[i]:PATM;P[i]=p;pp[i]=p;tOld[i]=T[i];}
+function lifeHazard(i){
+  const t=T[i];
+  if(t>ignA[VIDA]&&hasOxy(i)){ignite(i);return true;}
+  if(t>LIFE_TMAX||t<LIFE_TMIN||ionL[i]>.05||(IxC[i]<0?-IxC[i]:IxC[i])+(IyC[i]<0?-IyC[i]:IyC[i])>LIFE_IMAX){lifeKill(i);return true;}
+  if(rnd()<.05){let l=0;if(kind[mat[i-1]]===LIQ)l++;if(kind[mat[i+1]]===LIQ)l++;if(kind[mat[i-W]]===LIQ)l++;if(kind[mat[i+W]]===LIQ)l++;
+    if(l>=3){lifeKill(i);return true;}} // afogada
+  return false;
+}
+function lifeStep(){
+  if(++lifeTick<lifeEvery) return; lifeTick=0;
+  lifeN.fill(0); let any=false;
+  for(let y=1;y<H-1;y++){const row=y*W;
+    for(let x=1;x<W-1;x++){const i=row+x; if(mat[i]!==VIDA||life[i]>0) continue; any=true; // em chamas não conta
+      lifeN[i-W-1]++;lifeN[i-W]++;lifeN[i-W+1]++;lifeN[i-1]++;lifeN[i+1]++;lifeN[i+W-1]++;lifeN[i+W]++;lifeN[i+W+1]++;}}
+  if(!any) return;
+  for(let y=1;y<H-1;y++){const row=y*W;
+    for(let x=1;x<W-1;x++){const i=row+x,n=lifeN[i],m=mat[i];
+      if(m===VIDA){ if(life[i]===0&&(n<2||n>3)) setCell(i,AR,T[i]); }
+      else if(n===3&&m===AR&&T[i]>LIFE_TMIN&&T[i]<LIFE_TMAX&&ionL[i]<.01) setCell(i,VIDA,T[i]);
+    }}
+}
 function stateStep(){
   for(let y=1;y<H-1;y++){
     const row=y*W;
@@ -411,6 +438,7 @@ function stateStep(){
           continue;
         }
       }
+      if(m===VIDA&&life[i]===0&&lifeHazard(i)) continue;
       if(ignA[m]>0){ if(life[i]>0&&kind[m]!==GAS){burn(i,m);continue;} if(T[i]>ignA[m]&&hasOxy(i)){ignite(i);continue;} }
       if(k===FIX&&strA[m]>0){
         let mx=-1,mn=1e15,c=0;
@@ -484,7 +512,7 @@ function paintCell(i,tl,solid){
     }
     const k=kind[tl],ck=kind[cm];
     if(cm===tl) return;
-    if(k===FIX){ if(!shiftKey&&ck===FIX) return; }
+    if(k===FIX){ if(!shiftKey&&ck===FIX) return; if(tl===VIDA&&!solid&&rnd()>.3) return; }
     else { if(!shiftKey&&ck!==GAS) return; if(!solid&&rnd()>fillA[tl]) return; }
     setCell(i,tl,tl===RESIST?heaterT:T0A[tl]);
     if(tl===IMA) magnetize(i,magDir);
@@ -591,6 +619,18 @@ const PRESETS={
     boxM(76,184,124,198,1,VIDRO); rectM(77,187,123,197,FERROFL);
     rectM(30,120,70,124,ACO);
     rectM(20,20,180,34,LIMALHA);
+  },
+  life(){ // jogo da vida: canhão de planadores rumo a aquecedor, sopa entre eletrodos, lago (afogamento) e fogueira
+    clearAll(); heaterSet(400); setVolt(30);
+    const gun=['........................O...........','......................O.O...........','............OO......OO............OO',
+      '...........O...O....OO............OO','OO........O.....O...OO..............','OO........O...O.OO....O.O...........',
+      '..........O.....O.......O...........','...........O...O....................','............OO......................'];
+    gun.forEach((r,y)=>{for(let x=0;x<r.length;x++)if(r[x]==='O')rectM(4+x,6+y,4+x,6+y,VIDA);}); // Gosper → planadores para SE
+    rectM(150,118,152,160,RESIST);                                     // parede quente: planadores morrem no ar aquecido
+    rectM(1,184,198,198,AGUA);                                         // lago
+    rectM(10,120,12,170,FONTEP); rectM(70,120,72,170,FONTEN);           // eletrodos: colônia que os conectar leva choque
+    for(let y=122;y<=168;y++)for(let x=13;x<=69;x++)if(rnd()<.35)rectM(x,y,x,y,VIDA); // sopa aleatória
+    rectM(100,150,120,166,VIDA); rectM(104,174,116,183,MADEIRA); rectM(108,172,112,173,MADEIRA,720); // colônia sobre fogueira
   },
   tesla(){ // eletrodo de alta tensão: descargas buscam a ponta mais próxima/condutora
     clearAll(); setVolt(1e7);
@@ -746,6 +786,7 @@ const IC={
  [TERRA]:'<svg viewBox="0 0 32 32"><path d="M16 4v12M6 16h20M10 21h12M14 26h4" stroke="#8fc070" stroke-width="2.4" stroke-linecap="round"/></svg>',
  [NUVEM]:'<svg viewBox="0 0 32 32"><path d="M8 24a5 5 0 0 1 0-10 7 7 0 0 1 13-3 5.5 5.5 0 0 1 3 13z" fill="#b9c0cc"/><path d="M14 24l-2 5M19 24l-2 5" stroke="#5aa0ff" stroke-width="1.6" stroke-linecap="round"/></svg>',
  [GRANIZO]:'<svg viewBox="0 0 32 32"><g fill="#eef6ff" stroke="#9cc0dd"><circle cx="10" cy="10" r="4"/><circle cx="21" cy="13" r="3.2"/><circle cx="13" cy="21" r="3.6"/><circle cx="23" cy="24" r="2.6"/></g></svg>',
+ [VIDA]:'<svg viewBox="0 0 32 32"><g fill="#46d66e"><rect x="13" y="5" width="6" height="6" rx="1"/><rect x="20" y="12" width="6" height="6" rx="1"/><rect x="6" y="19" width="6" height="6" rx="1"/><rect x="13" y="19" width="6" height="6" rx="1"/><rect x="20" y="19" width="6" height="6" rx="1"/></g></svg>',
  [CHGP]:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#ff7a60" stroke-width="2"/><path d="M16 10v12M10 16h12" stroke="#ffb09a" stroke-width="3" stroke-linecap="round"/></svg>',
  [CHGN]:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#5a9cff" stroke-width="2"/><path d="M10 16h12" stroke="#a8c8ff" stroke-width="3" stroke-linecap="round"/></svg>',
  [FLIP]:'<svg viewBox="0 0 32 32"><path d="M7 12a9 9 0 0 1 16-3l2-2v7h-7l2.5-2.5A6 6 0 0 0 10 13z" fill="#e8665c"/><path d="M25 20a9 9 0 0 1-16 3l-2 2v-7h7l-2.5 2.5A6 6 0 0 0 22 19z" fill="#4f86ec"/></svg>',
@@ -786,6 +827,7 @@ const DESC={
  [TERRA]:'aterramento: potencial 0 (o piso da câmara também é terra)',
  [NUVEM]:'gotículas/cristais suspensos · com graupel separa cargas',
  [GRANIZO]:'graupel · colisões com cristais de gelo transferem carga (− abaixo de −15 °C, + acima)',
+ [VIDA]:'jogo da vida B3/S23 · nasce só no ar entre −5 e 60 °C · morre por calor, frio, fogo, raio, choque (>20 mA), afogamento e esmagamento',
  [CHGP]:'deposita carga positiva (C/célula ajustável)',[CHGN]:'deposita carga negativa',
  [FLIP]:'inverte: sinal da carga, polo do ímã, polaridade da fonte',
  [SPARK]:'ioniza o meio (gatilho de arco)'
@@ -798,11 +840,12 @@ const GROUPS=[
  ['Elétrica',[COBRE,NICROMO,FONTEP,FONTEN,TERRA]],
  ['Magnetismo',[IMA,LIMALHA,FERROFL]],
  ['Clima',[NUVEM,GRANIZO]],
+ ['Vida',[VIDA]],
  ['Ferramentas',[ERASE,HEAT,COOL,CHGP,CHGN,FLIP,SPARK]]
 ];
 const SUB={[ERASE]:'',[HEAT]:'+Q',[COOL]:'−Q',[RESIST]:'aquecedor',[FOGO]:'~1100 °C',[VAPOR]:'gás',[HELIO]:'gás',
   [COBRE]:'6·10⁷ S/m',[NICROMO]:'9·10⁵ S/m',[FONTEP]:'+V/2',[FONTEN]:'−V/2',[TERRA]:'0 V',[IMA]:'1,2 T',[LIMALHA]:'ferromag.',
-  [FERROFL]:'ferromag.',[NUVEM]:'gás',[GRANIZO]:'ρ 700',[CHGP]:'+q',[CHGN]:'−q',[FLIP]:'±',[SPARK]:'plasma'};
+  [FERROFL]:'ferromag.',[NUVEM]:'gás',[GRANIZO]:'ρ 700',[VIDA]:'B3/S23',[CHGP]:'+q',[CHGN]:'−q',[FLIP]:'±',[SPARK]:'plasma'};
 const NAMES={[ERASE]:'Borracha',[HEAT]:'Aquecer',[COOL]:'Resfriar',[CHGP]:'Carga +',[CHGN]:'Carga −',[FLIP]:'Inverter polo',[SPARK]:'Faísca'};
 // ================= paleta de materiais (abas + busca) e trilho de ferramentas =================
 const MODES=[
@@ -1115,7 +1158,7 @@ function stepOnce(){if(!paused)togglePause();simStep();magStep();}
 document.getElementById('bStep').onclick=stepOnce;
 applyZoom();
 // loop
-function simStep(){moveStep();pressureStep();heatStep();stateStep();if(storm)weatherStep();elecStep();}
+function simStep(){moveStep();pressureStep();heatStep();stateStep();lifeStep();if(storm)weatherStep();elecStep();}
 let last=performance.now(),fps=60,frameN=0,simMs=0;
 function loop(now){
   const dt=now-last;last=now;fps+=(1000/Math.max(dt,1)-fps)*.05;
