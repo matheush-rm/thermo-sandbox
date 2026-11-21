@@ -814,17 +814,17 @@ function tile(id){
 }
 function renderPalette(){
   const q=norm(searchEl.value.trim());palEl.innerHTML='';let n=0;
-  tabsEl.querySelectorAll('.tab').forEach((t,k)=>t.classList.toggle('on',!q&&k===matTab));
+  tabsEl.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',!q&&+t.dataset.k===matTab));
   for(let g=0;g<MAT_GROUPS.length;g++){
     const [gn,list]=MAT_GROUPS[g];
-    const ids=q?list.filter(id=>norm(nameOf(id)+' '+(DESC[id]||'')+' '+gn).includes(q)):(g===matTab?list:[]);
+    const ids=q?list.filter(id=>norm(nameOf(id)+' '+(DESC[id]||'')+' '+gn).includes(q)):(matTab<0||g===matTab?list:[]);
     if(!ids.length)continue;
-    if(q){const h=document.createElement('div');h.className='gh';h.textContent=gn;palEl.appendChild(h);}
+    if(q||matTab<0){const h=document.createElement('div');h.className='gh';h.textContent=gn;palEl.appendChild(h);}
     for(const id of ids){palEl.appendChild(tile(id));n++;}
   }
   if(!n)palEl.innerHTML='<div class="empty">Nenhum material encontrado</div>';
 }
-MAT_GROUPS.forEach(([gn],k)=>{const t=document.createElement('button');t.className='tab';t.textContent=gn;
+[['Todos'],...MAT_GROUPS].forEach(([gn],k)=>{k--;const t=document.createElement('button');t.className='tab';t.textContent=gn;t.dataset.k=k;
   t.onclick=()=>{matTab=k;searchEl.value='';renderPalette();};tabsEl.appendChild(t);});
 document.getElementById('matCount').textContent=MAT_GROUPS.reduce((a,g)=>a+g[1].length,0);
 searchEl.oninput=renderPalette;
