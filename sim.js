@@ -906,7 +906,7 @@ document.getElementById('bHelp').onclick=()=>helpDlg.showModal();
 document.getElementById('bHelpX').onclick=()=>helpDlg.close();
 helpDlg.onclick=e=>{if(e.target===helpDlg)helpDlg.close();};
 addEventListener('keydown',e=>{
-  if(e.key==='Shift')shiftKey=true;
+  if(e.key==='Shift'){shiftKey=true;constrainShape();}
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||helpDlg.open)return;
   const mod=e.ctrlKey||e.metaKey,k=e.key.toLowerCase();
   if(mod){
@@ -929,7 +929,7 @@ addEventListener('keydown',e=>{
   if(e.key==='Escape'){pinI=-1;if(shapePrev){shapePrev=null;drawing=false;}}
   if(e.key==='f'||e.key==='F')focusAt(hoverI>=0?hoverI:pinI);
 });
-addEventListener('keyup',e=>{if(e.key==='Shift')shiftKey=false;});
+addEventListener('keyup',e=>{if(e.key==='Shift'){shiftKey=false;constrainShape();}});
 
 // legenda
 const lgGrad=document.getElementById('lgGrad'),lgLo=document.getElementById('lgLo'),lgHi=document.getElementById('lgHi'),lgView=document.getElementById('lgView');
@@ -999,15 +999,20 @@ stage.addEventListener('pointerdown',e=>{stage.setPointerCapture(e.pointerId);up
   const tl=erasing?ERASE:tool;
   if(drawMode==='fill'){bucket(curX,curY,tl);return;}
   drawing=true;
-  if(!isFree()){shapePrev={md:drawMode,x0:curX,y0:curY,x1:curX,y1:curY};return;}
+  if(!isFree()){shapePrev={md:drawMode,x0:curX,y0:curY,x1:curX,y1:curY,cx:curX,cy:curY,ow:shiftKey};return;}
   if(!CONT[tl]) paintAt(curX,curY,tl);});
 stage.addEventListener('pointermove',e=>{
   if(panning){const r=stage.getBoundingClientRect();ZX=panning.zx-(e.clientX-panning.x)/r.width*W/Z;ZY=panning.zy-(e.clientY-panning.y)/r.height*H/Z;applyZoom();return;}
   stage.classList.toggle('pan',e.altKey);
   updBrush(e);shiftKey=e.shiftKey;
-  if(shapePrev){shapePrev.x1=curX;shapePrev.y1=curY;return;}
+  if(shapePrev){shapePrev.cx=curX;shapePrev.cy=curY;constrainShape();return;}
   if(drawing){const tl=erasing?ERASE:tool;if(!CONT[tl])paintLine(lastX,lastY,curX,curY,tl);lastX=curX;lastY=curY;lastPaintI=hoverI;}});
-const endDraw=()=>{if(shapePrev){const sp=shapePrev;shapePrev=null;paintShape(sp.md,sp.x0,sp.y0,sp.x1,sp.y1,erasing?ERASE:tool);}drawing=false;if(panning){panning=null;stage.classList.remove('drag','pan');}};
+// Shift durante arrasto: linha só horiz./vert.; retângulo/elipse quadrado/círculo. Sobrescrever em formas = Shift no clique inicial
+function constrainShape(){const sp=shapePrev;if(!sp)return;let dx=sp.cx-sp.x0,dy=sp.cy-sp.y0;
+  if(shiftKey){if(sp.md==='line'){if(Math.abs(dx)>=Math.abs(dy))dy=0;else dx=0;}
+    else{const d=Math.max(Math.abs(dx),Math.abs(dy));dx=(dx<0?-1:1)*d;dy=(dy<0?-1:1)*d;}}
+  sp.x1=sp.x0+dx;sp.y1=sp.y0+dy;}
+const endDraw=()=>{if(shapePrev){const sp=shapePrev;shapePrev=null;const sk=shiftKey;shiftKey=sp.ow;paintShape(sp.md,sp.x0,sp.y0,sp.x1,sp.y1,erasing?ERASE:tool);shiftKey=sk;}drawing=false;if(panning){panning=null;stage.classList.remove('drag','pan');}};
 stage.addEventListener('pointerup',endDraw);stage.addEventListener('pointercancel',endDraw);
 stage.addEventListener('pointerleave',()=>{brushEl.style.display='none';hoverI=-1;});
 stage.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
