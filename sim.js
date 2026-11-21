@@ -597,6 +597,26 @@ const PRESETS={
     rectM(80,30,120,40,FONTEP); rectM(95,41,105,46,COBRE); rectM(100,47,100,62,COBRE); // agulha: ponta concentra o campo
     rectM(30,150,33,198,ACO); rectM(100,175,130,198,CONCRETO); rectM(150,140,170,198,MADEIRA);
     rectM(1,190,29,198,AGUA); rectM(171,192,198,198,AREIA);
+  },
+  teslacoil(){ // bobina de Tesla: toroide em alta tensão; espiras isoladas do secundário assumem o gradiente de potencial
+    // ⚠️ assumido: simulação quase-estática (sem RF/ressonância) → toroide alimentado por fonte DC equivalente ao pico
+    clearAll(); setVolt(1e7);
+    rectM(1,188,198,198,CONCRETO); rectM(90,194,110,198,TERRA);         // piso + haste de aterramento
+    rectM(76,176,124,187,CONCRETO);                                    // base
+    for(let k=0;k<4;k++){const r=16+k*3;rectM(100-r,173-k,100-r+1,174-k,COBRE);rectM(100+r-1,173-k,100+r,174-k,COBRE);} // primário cônico
+    rectM(96,80,104,175,VIDRO);                                       // forma do secundário (tubo isolante)
+    for(let y=82;y<=174;y+=2){rectM(95,y,95,y,COBRE);rectM(105,y,105,y,COBRE);} // espiras (seção) isoladas entre si
+    rectM(105,175,106,175,COBRE); rectM(106,176,107,193,COBRE);        // base do secundário → terra
+    rectM(99,74,101,79,COBRE);                                        // ligação topo do secundário
+    // toroide (seção: dois lóbulos + disco central). Núcleo = fonte HV, casca de alumínio: a corrente de carga
+    // entra pela superfície toda (fonte pequena/linha concentra a corrente → Joule vaporiza o metal)
+    const tor=(x,y,d)=>{const a=(x-81)/(15-d),b=(x-119)/(15-d),c=(y-70)/(8-d);
+      return a*a+c*c<=1||b*b+c*c<=1||(x>=81&&x<=119&&y>=66+d&&y<=74-d);};
+    for(let y=60;y<=80;y++)for(let x=66;x<=134;x++)if(tor(x,y,0))rectM(x,y,x,y,tor(x,y,2)?FONTEP:LATA);
+    rectM(135,70,146,70,COBRE);                                       // ponta de descarga (breakout point)
+    rectM(166,110,168,187,ACO); rectM(163,108,171,110,ACO);            // haste aterrada (alvo)
+    boxM(14,140,48,187,1,ACO); rectM(26,176,36,187,MADEIRA);           // gaiola de Faraday com madeira dentro
+    rectM(132,180,142,187,MADEIRA);                                    // madeira no chão: pode inflamar
   }
 };
 
