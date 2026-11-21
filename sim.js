@@ -75,7 +75,7 @@ const EL={
 // coef. térmico da resistividade (1/K)
 const ALPHA={[COBRE]:.0039,[LATA]:.0039,[ACO]:.005,[NICROMO]:.0004,[MERCURIO]:.0009,[IMA]:.001,[ALUF]:.001,[COBREF]:.001,[ACOF]:.001};
 // magnético: [1 = ferromagneto mole / 2 = ímã permanente, Ms saturação A/m, χ efetivo (com desmagnetização), T Curie K]
-const MG={[ACO]:[1,1.6e6,2.9,1043],[LIMALHA]:[1,8e5,2.5,1043],[FERROFL]:[1,4.5e4,1.2,850],[IMA]:[2,9.5e5,0,583]};
+const MG={[ACO]:[1,1.6e6,2.9,1043],[LIMALHA]:[1,8e5,5,1043],[FERROFL]:[1,4.5e4,1.2,850],[IMA]:[2,9.5e5,0,583]};
 const SRC={[FONTEP]:1,[FONTEN]:2,[TERRA]:3}; // potencial fixo: +V/2, −V/2, 0
 
 // compila em arrays tipados
@@ -274,7 +274,8 @@ function pressureStep(){
   // pós: adiabático em gases abertos, densidade dos gases, aquecimento por compressão em líquidos
   for(let i=0;i<N;i++){
     const v=vis[i]; if(v===3) continue;
-    const m=mat[i],k=kind[m],p=Pn[i];
+    const m=mat[i],k=kind[m];let p=Pn[i];
+    if(p<1000){p=1000;Pn[i]=p;} // coluna sustentada por força externa (ímã) acima de bolsão aberto: hidrostática daria P<0
     if(k===GAS){
       if(v===1){const r=p/pp[i]; if(r>1.00002||r<0.99998) T[i]*=Math.pow(r,gexp[m]);}
       gd[i]=p*molar[m]/(RG*T[i]);

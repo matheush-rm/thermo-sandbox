@@ -107,16 +107,17 @@ function sor(n){
 // resolve com precisão a rede condutora (fios longos, contraste cobre/nicromo/eletrólito) mantendo o ar fixo;
 // a deflação pelos indicadores de cada corpo resolve exatamente o potencial flutuante (carga total / capacitância).
 const inS=new Uint8Array(N),Sx=new Int32Array(N),rr=new Float64Array(N),zz=new Float64Array(N),pq=new Float64Array(N),ww=new Float64Array(N),ext=new Float64Array(N);
-let cEc=new Float64Array(1024),cMu=new Float64Array(1024);
+let cEc=new Float64Array(1024),cMu=new Float64Array(1024),cAct=new Int32Array(1024);
 function dpcg(maxIt,tol,onlyIon){ // onlyIon: só corpos com plasma (sub-passos rápidos)
   const lab=labA[0],ord=ordA[0],S=cS[0],E=cE[0],nc=nC[0];
   if(!nc) return 0;
   if(cEc.length<nc){cEc=new Float64Array(nc*2);cMu=new Float64Array(nc*2);}
-  let n=0;
-  for(let c=0;c<nc;c++){if(onlyIon&&!cHi[c])continue;for(let k=S[c];k<E[c];k++){const i=ord[k];if(!fixV[i]){inS[i]=1;Sx[n++]=i;}}}
+  if(cAct.length<nc)cAct=new Int32Array(nc*2);
+  let n=0,na=0; // cAct: corpos ativos (loops de deflação só sobre eles, não sobre todas as gotas da nuvem)
+  for(let c=0;c<nc;c++){if(onlyIon&&!cHi[c])continue;const n0=n;for(let k=S[c];k<E[c];k++){const i=ord[k];if(!fixV[i]){inS[i]=1;Sx[n++]=i;}}if(n>n0)cAct[na++]=c;}
   if(!n) return 0;
   if(maxIt<0)maxIt=Math.min(1500,Math.max(-maxIt,(1.5e5/n)|0)); // orçamento de trabalho: conjuntos pequenos convergem por completo
-  cEc.fill(0,0,nc);cMu.fill(0,0,nc);
+  for(let a=0;a<na;a++){const c=cAct[a];cEc[c]=0;cMu[c]=0;}
   let bn=0;
   for(let t=0;t<n;t++){const i=Sx[t],c=lab[i];
     const e=dg[i]-(inS[i-1]?aR[i-1]:0)-(inS[i+1]?aR[i]:0)-(inS[i-W]?aD[i-W]:0)-(inS[i+W]?aD[i]:0);
@@ -126,12 +127,12 @@ function dpcg(maxIt,tol,onlyIon){ // onlyIon: só corpos com plasma (sub-passos 
     const b=q+(inS[i-1]?0:aR[i-1]*Vf[i-1])+(inS[i+1]?0:aR[i]*Vf[i+1])+(inS[i-W]?0:aD[i-W]*Vf[i-W])+(inS[i+W]?0:aD[i]*Vf[i+W]);
     bn+=b*b;cMu[c]+=rr[i];}
   // correção grossa (deflação): zera a carga residual líquida de cada corpo
-  for(let c=0;c<nc;c++)cMu[c]=cEc[c]>0?cMu[c]/cEc[c]:0;
+  for(let a=0;a<na;a++){const c=cAct[a];cMu[c]=cEc[c]>0?cMu[c]/cEc[c]:0;}
   for(let t=0;t<n;t++){const i=Sx[t],m=cMu[lab[i]];Vf[i]+=m;rr[i]-=ext[i]*m;}
   const lim=tol*tol*bn;
-  let rz=0,rn=0;cMu.fill(0,0,nc);
+  let rz=0,rn=0;for(let a=0;a<na;a++)cMu[cAct[a]]=0;
   for(let t=0;t<n;t++){const i=Sx[t],z=rr[i]/dg[i];zz[i]=z;rz+=rr[i]*z;rn+=rr[i]*rr[i];cMu[lab[i]]+=ext[i]*z;}
-  for(let c=0;c<nc;c++)cMu[c]=cEc[c]>0?cMu[c]/cEc[c]:0;
+  for(let a=0;a<na;a++){const c=cAct[a];cMu[c]=cEc[c]>0?cMu[c]/cEc[c]:0;}
   for(let t=0;t<n;t++){const i=Sx[t];pq[i]=zz[i]-cMu[lab[i]];}
   let it=0;
   while(it<maxIt&&rn>lim&&rz>0){
@@ -139,9 +140,9 @@ function dpcg(maxIt,tol,onlyIon){ // onlyIon: só corpos com plasma (sub-passos 
     for(let t=0;t<n;t++){const i=Sx[t];
       const w=dg[i]*pq[i]-aR[i-1]*pq[i-1]-aR[i]*pq[i+1]-aD[i-W]*pq[i-W]-aD[i]*pq[i+W];ww[i]=w;pw+=pq[i]*w;}
     if(!(pw>0))break;
-    const al=rz/pw;let rz2=0;rn=0;cMu.fill(0,0,nc);
+    const al=rz/pw;let rz2=0;rn=0;for(let a=0;a<na;a++)cMu[cAct[a]]=0;
     for(let t=0;t<n;t++){const i=Sx[t];Vf[i]+=al*pq[i];const r=rr[i]-al*ww[i];rr[i]=r;const z=r/dg[i];zz[i]=z;rz2+=r*z;rn+=r*r;cMu[lab[i]]+=ext[i]*z;}
-    for(let c=0;c<nc;c++)cMu[c]=cEc[c]>0?cMu[c]/cEc[c]:0;
+    for(let a=0;a<na;a++){const c=cAct[a];cMu[c]=cEc[c]>0?cMu[c]/cEc[c]:0;}
     const be=rz2/rz;rz=rz2;
     for(let t=0;t<n;t++){const i=Sx[t];pq[i]=be*pq[i]+zz[i]-cMu[lab[i]];}
     it++;
@@ -166,6 +167,7 @@ function fieldU(){let u=0;
 function fluxJ(dt){
   const U=fieldU();
   const p0=ePl,e0=eJoule,E=flux(dt);let sc=1;
+  if(!(E<1e15)){jb.fill(0);Uprev=U;return 0;} // overflow numérico: descarta o passo (o guarda de V reinicia o solver)
   if(!hasSrc){const av=Math.max(0,Uprev-U)+1e-9;if(E>av)sc=av/E;}
   Uprev=U;
   ePl=p0+(ePl-p0)*sc*(hasSrc?1:PLX);eJoule=e0+(eJoule-e0)*sc;
@@ -208,37 +210,44 @@ function eMag(i){const v=Vf[i];
   return Math.hypot(ex,ey);}
 // ruptura estocástica (modelo de quebra dielétrica, DBM): avançam poucas células por sub-passo,
 // sorteadas com peso ∝ (E/E_rup)^η → canal fino e ramificado que procura o caminho de menor rigidez
-const QMAX=2e-6,PROP=.35,FLMAX=1500,BK=8,BETA=3,cdI=new Int32Array(N),cdW=new Float64Array(N);
+const VAPT=5000,QMAX=2e-6,PROP=.35,FLMAX=1500,BK=30,BETA=3,cdI=new Int32Array(N),cdW=new Float64Array(N);
+// razão E/E_rup da célula i (0 se não rompe ou não é dielétrico); th: fração do campo de ruptura exigida
+function brk(i,th){
+  if(fixV[i]||ion[i]>.5)return 0;
+  const m=mat[i],e0=ebA[m];if(!e0||sgE[i]>1)return 0;
+  let eb=e0;if(kind[m]===GAS){let r=gd[i]/1.2;if(r<.05)r=.05;eb*=r;} // Paschen (pd alto): E_rup ∝ densidade
+  const v=Vf[i];let d,dm=0;
+  if(aR[i-1]>0){d=v-Vf[i-1];if(d<0)d=-d;if(d>dm)dm=d;}
+  if(aR[i]>0){d=v-Vf[i+1];if(d<0)d=-d;if(d>dm)dm=d;}
+  if(aD[i-W]>0){d=v-Vf[i-W];if(d<0)d=-d;if(d>dm)dm=d;}
+  if(aD[i]>0){d=v-Vf[i+W];if(d<0)d=-d;if(d>dm)dm=d;}
+  const r=dm/(eb*th*DX);return r>1?r:0;
+}
+const bkM=new Uint32Array(N);let bkS=0;
 function breakdown(){
   if(flashN>=FLMAX||lGround)return 0; // canal completo (tocou a terra) ou líder esgotado
-  let na=0,ta=0,ni=0,ti=0; // na: vizinhos do líder ativo (crescimento); ni: pontos de iniciação
+  // 1) ponta do líder: só vizinhos de canal ionizado (a ponta avança por streamers, ~1 MV/m no ar → PROP·E_rup)
+  bkS++;let na=0,ta=0;
   for(let y=1;y<H-1;y++){const row=y*W;
-    for(let x=1;x<W-1;x++){const i=row+x;if(fixV[i]||ion[i]>.5)continue;
-      const m=mat[i],e0=ebA[m];if(!e0||sgE[i]>1)continue;
-      let eb=e0;if(kind[m]===GAS){let r=gd[i]/1.2;if(r<.05)r=.05;eb*=r;} // Paschen (pd alto): E_rup ∝ densidade
-      const v=Vf[i];let d,dm=0;
-      if(aR[i-1]>0){d=v-Vf[i-1];if(d<0)d=-d;if(d>dm)dm=d;}
-      if(aR[i]>0){d=v-Vf[i+1];if(d<0)d=-d;if(d>dm)dm=d;}
-      if(aD[i-W]>0){d=v-Vf[i-W];if(d<0)d=-d;if(d>dm)dm=d;}
-      if(aD[i]>0){d=v-Vf[i+W];if(d<0)d=-d;if(d>dm)dm=d;}
-      // vizinho de canal recém-ionizado: a ponta do líder avança por streamers, que se propagam com ~1 MV/m
-      // no ar (líder negativo) (iniciação exige o campo de ruptura completo, ~3 MV/m)
-      const adj=ion[i-1]>.6||ion[i+1]>.6||ion[i-W]>.6||ion[i+W]>.6;
-      const r=dm/(eb*(adj?PROP:1)*DX);
-      if(r>1){const w=Math.pow(r,BETA);
-        if(adj){cdI[na]=i;cdW[na]=w;ta+=w;na++;}
-        else{const k=N-1-ni;cdI[k]=i;cdW[k]=w;ti+=w;ni++;}}
-    }}
-  // há líder ativo → cresce só a partir dele (canal único ramificado); senão inicia em um ponto
-  let n=0;
+    for(let x=1;x<W-1;x++){const c=row+x;if(!(ion[c]>.6))continue;
+      for(let q=0;q<4;q++){const i=q===0?c-1:q===1?c+1:q===2?c-W:c+W;
+        if(bkM[i]===bkS||i<W||i>=N-W)continue;bkM[i]=bkS;const xi=i%W;if(xi<1||xi>W-2)continue;
+        const r=brk(i,PROP);if(r){const w=Math.pow(r,BETA);cdI[na]=i;cdW[na]=w;ta+=w;na++;}}}}
+  // há líder ativo → cresce só a partir dele (canal único ramificado), poucas células sorteadas ∝ (E/E_rup)^η
   if(na){
     if(na<=BK){for(let k=0;k<na;k++)ion[cdI[k]]=1;flashN+=na;return na;}
     for(let k=1;k<na;k++)cdW[k]+=cdW[k-1];
+    let n=0;
     for(let p=0;p<BK;p++){const u=rnd()*ta;let lo=0,hi=na-1;while(lo<hi){const md=(lo+hi)>>1;if(cdW[md]<u)lo=md+1;else hi=md;}
       const i=cdI[lo];if(ion[i]<1){ion[i]=1;n++;}}
     flashN+=n;return n;
   }
-  if(ni){let u=rnd()*ti,k=N-1;for(;k>N-ni;k--){u-=cdW[k];if(u<=0)break;}ion[cdI[k]]=1;return 1;}
+  // 2) iniciação: campo de ruptura completo em qualquer ponto; sorteia um
+  let ni=0,ti=0;
+  for(let y=1;y<H-1;y++){const row=y*W;
+    for(let x=1;x<W-1;x++){const i=row+x;if(!ebA[mat[i]])continue;const r=brk(i,1);
+      if(r){const w=Math.pow(r,BETA);cdI[ni]=i;cdW[ni]=w;ti+=w;ni++;}}}
+  if(ni){let u=rnd()*ti,k=0;for(;k<ni-1;k++){u-=cdW[k];if(u<=0)break;}ion[cdI[k]]=1;return 1;}
   return 0;
 }
 let eCnt=0;
@@ -253,7 +262,7 @@ function elecStep(){
  smoothChg();
   // líder escalonado: sub-passos rápidos enquanto houver ruptura nova
   let nb=breakdown(),k=0;
-  while(nb>0&&k<8){elecCoef(DT_F);label();sor(2);dpcg(-30,1e-9,true);sor(2);fluxJ(DT_F);smoothChg();nb=breakdown();k++;}
+  while(nb>0&&k<2){elecCoef(DT_F);label();sor(2);dpcg(-30,1e-9,true);sor(2);fluxJ(DT_F);smoothChg();nb=breakdown();k++;}
   // recombinação do plasma (τ≈50 ms) e resfriamento radiativo do canal
   const grow=nb>0; // líder ainda avançando: canal mantém-se ionizado até completar
   if(!grow)flashN=0;
@@ -261,7 +270,8 @@ function elecStep(){
   for(let i=0;i<N;i++){
     const q=chg[i];if(q>QMAX)chg[i]=QMAX;else if(q<-QMAX)chg[i]=-QMAX; // limite de corona: ε0·E_rup·área
     if(ion[i]>0&&!grow){const v=ion[i]*f;ion[i]=v<1e-3?0:v;}
-    const t=T[i];if(t>1500&&kind[mat[i]]===GAS)T[i]=t-(t-1500)*.3; // resfriamento radiativo/expansão do canal
+    const t=T[i],mi=mat[i];if(t>1500&&kind[mi]===GAS)T[i]=t-(t-1500)*.3; // resfriamento radiativo/expansão do canal
+    else if(t>VAPT&&kind[mi]!==GAS&&!fixV[i]&&mi!==PAREDE){convert(i,mi===AGUA||mi===SALMOURA?VAPOR:FUMACA);mxA[i]=0;myA[i]=0;} // vaporização explosiva (⚠️ vapor do material ≈ fumaça)
     if(dom[i]){const a=Vf[i]<0?-Vf[i]:Vf[i];if(a>vm)vm=a;const c=(IxC[i]<0?-IxC[i]:IxC[i])+(IyC[i]<0?-IyC[i]:IyC[i]);if(c>im)im=c;}
   }
   if(!(vm<1e10)){Vf.fill(0);chg.fill(0);vm=0;im=0;console.warn('solver elétrico reiniciado');} // proteção numérica
@@ -273,7 +283,7 @@ function elecStep(){
 // =====================================================================
 const SH=2,CF=1<<SH,CW=W>>SH,CH=H>>SH,CN=CW*CH,HC=CF*DX,FB=7,FN=1<<FB,FS=FN*FN,SOFT2=(.5*HC)*(.5*HC);
 const Bx=new Float32Array(CN),By=new Float32Array(CN),Bz=new Float32Array(CN),Bm=new Float32Array(CN),gBx=new Float32Array(CN),gBy=new Float32Array(CN);
-const smx=new Float32Array(CN),smy=new Float32Array(CN),smz=new Float32Array(CN),tmx=new Float32Array(CN),tmy=new Float32Array(CN),tmz=new Float32Array(CN),
+const tmx=new Float32Array(CN),tmy=new Float32Array(CN),tmz=new Float32Array(CN),
   pmx=new Float32Array(CN),pmy=new Float32Array(CN),cxs=new Float32Array(CN),cys=new Float32Array(CN),magC=new Uint8Array(CN);
 const Bfine=new Float32Array(N),poleT=new Float32Array(N).fill(-1);
 const rv=new Uint16Array(FN),fcs=new Float64Array(FN/2),fsn=new Float64Array(FN/2);
@@ -305,36 +315,24 @@ function mkK(f){const re=new Float64Array(FS),im=new Float64Array(FS);
   fft2(re,im,false,FN);return [re,im];}
 function buildKernels(){ // r = campo − fonte; y para baixo, z para dentro da tela
   Kcx=mkK((x,y,r2,r3)=>KM*y/r3);Kcy=mkK((x,y,r2,r3)=>-KM*x/r3);                 // Biot–Savart: dB = μ0/4π · I dl × r / r³
-  Kxx=mkK((x,y,r2,r3)=>KM*(3*x*x/r2-1)/r3);Kxy=mkK((x,y,r2,r3)=>KM*3*x*y/r2/r3);Kyy=mkK((x,y,r2,r3)=>KM*(3*y*y/r2-1)/r3); // dipolo
+  // dipolo de coluna 2D (corpo extrudado em z, ⚠️ assumido): B = μ0/2π·[2(λ·r̂)r̂ − λ]/r², λ = M·área = M·VOL/DX.
+  // Com placa fina de 10 cm o campo de um ímã de 1 m cairia ~20× (0,03 T) e não atrairia nada.
+  const K2=2*KM/DX;
+  Kxx=mkK((x,y,r2)=>K2*(2*x*x/r2-1)/r2);Kxy=mkK((x,y,r2)=>K2*2*x*y/r2/r2);Kyy=mkK((x,y,r2)=>K2*(2*y*y/r2-1)/r2);
   Kzz=mkK((x,y,r2,r3)=>-KM/r3);
 }
 const Pr=new Float64Array(FS),Pi=new Float64Array(FS),Ar=new Float64Array(FS),Ai=new Float64Array(FS),Zr=new Float64Array(FS),Zi=new Float64Array(FS),
   O1r=new Float64Array(FS),O1i=new Float64Array(FS),O2r=new Float64Array(FS),O2i=new Float64Array(FS);
-function magClear(){Bx.fill(0);By.fill(0);Bz.fill(0);Bm.fill(0);gBx.fill(0);gBy.fill(0);smx.fill(0);smy.fill(0);smz.fill(0);Bfine.fill(0);bMax=0;}
-function magStep(){
-  tmx.fill(0);tmy.fill(0);tmz.fill(0);pmx.fill(0);pmy.fill(0);cxs.fill(0);cys.fill(0);magC.fill(0);
-  let nP=0,iT=0;
-  for(let y=0;y<H;y++){const cr=(y>>SH)*CW;
-    for(let x=0;x<W;x++){const i=y*W+x,m=mat[i],c=cr+(x>>SH);
-      if(m===IMA){poleT[i]=-1;const a=mxA[i],b=myA[i];if(a||b){pmx[c]+=a*VOL;pmy[c]+=b*VOL;nP++;magC[c]=1;}}
-      else if(mgA[m]===1&&T[i]<tcA[m]){const b=Bm[c];if(b>1e-9){let M=chiA[m]*b/MU0;if(M>msA[m])M=msA[m];const f=M*VOL/b;tmx[c]+=f*Bx[c];tmy[c]+=f*By[c];tmz[c]+=f*Bz[c];}}
-      const ix=IxC[i],iy=IyC[i];if(ix!==0||iy!==0){cxs[c]+=ix*DX;cys[c]+=iy*DX;const a=(ix<0?-ix:ix)+(iy<0?-iy:iy);if(a>iT)iT=a;}
-    }}
-  const curOn=elecLive&&iT>.05;
-  if(!nP&&!curOn){if(magLive){magClear();magLive=false;}return;}
-  if(!Kcx) buildKernels();
-  magLive=true;
-  let inP=false,inZ=curOn;
-  for(let c=0;c<CN;c++){smx[c]=.5*smx[c]+.5*tmx[c];smy[c]=.5*smy[c]+.5*tmy[c];smz[c]=.5*smz[c]+.5*tmz[c];
-    if(pmx[c]||pmy[c]||smx[c]||smy[c])inP=true;if(smz[c])inZ=true;}
+function magClear(){Bx.fill(0);By.fill(0);Bz.fill(0);Bm.fill(0);gBx.fill(0);gBy.fill(0);Bfine.fill(0);bMax=0;}
+// convolução: P = momentos no plano (x+iy) → B no plano; A = correntes, Z = momentos z → Bz. Resultado em O1/O2.
+function magConv(mx,my,ax,ay,mz,inP,inA,inZ){
   if(inP){Pr.fill(0);Pi.fill(0);
-    for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const c=cy*CW+cx,k=cy*FN+cx;Pr[k]=pmx[c]+smx[c];Pi[k]=pmy[c]+smy[c];}
+    for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const c=cy*CW+cx,k=cy*FN+cx;Pr[k]=mx[c];Pi[k]=my[c];}
     fft2(Pr,Pi,false,CH);}
-  if(inZ){Ar.fill(0);Ai.fill(0);Zr.fill(0);Zi.fill(0);
-    for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const c=cy*CW+cx,k=cy*FN+cx;Ar[k]=cxs[c];Ai[k]=cys[c];Zr[k]=smz[c];}
-    fft2(Ar,Ai,false,CH);fft2(Zr,Zi,false,CH);}
+  if(inA){Ar.fill(0);Ai.fill(0);for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const c=cy*CW+cx,k=cy*FN+cx;Ar[k]=ax[c];Ai[k]=ay[c];}fft2(Ar,Ai,false,CH);}
+  if(inZ){Zr.fill(0);Zi.fill(0);for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const c=cy*CW+cx,k=cy*FN+cx;Zr[k]=mz[c];}fft2(Zr,Zi,false,CH);}
   const kxr=Kxx[0],kxi=Kxx[1],kyr=Kxy[0],kyi=Kxy[1],kzr=Kyy[0],kzi=Kyy[1],
-    car=Kcx[0],cai=Kcx[1],cbr=Kcy[0],cbi=Kcy[1],zzr=Kzz[0],zzi=Kzz[1],MK=FN-1;
+    car=Kcx[0],cai=Kcx[1],cbr=Kcy[0],cbi=Kcy[1],zzr=Kzz[0],zzi=Kzz[1],MK=FN-1,oZ=inA||inZ;
   for(let k=0;k<FS;k++){
     const kn=(((FN-(k>>FB))&MK)<<FB)|((FN-(k&MK))&MK);
     if(inP){ // desempacota FFT de (mx + i·my)
@@ -344,17 +342,46 @@ function magStep(){
       const byr=kyr[k]*mxr-kyi[k]*mxi+kzr[k]*myr-kzi[k]*myi,byi=kyr[k]*mxi+kyi[k]*mxr+kzr[k]*myi+kzi[k]*myr;
       O1r[k]=bxr-byi;O1i[k]=bxi+byr;
     }
-    if(inZ){
-      const pr=Ar[k],pi=Ai[k],qr=Ar[kn],qi=Ai[kn];
-      const cxr=(pr+qr)*.5,cxi=(pi-qi)*.5,cyr=(pi+qi)*.5,cyi=(qr-pr)*.5,zr=Zr[k],zi=Zi[k];
-      O2r[k]=car[k]*cxr-cai[k]*cxi+cbr[k]*cyr-cbi[k]*cyi+zzr[k]*zr-zzi[k]*zi;
-      O2i[k]=car[k]*cxi+cai[k]*cxr+cbr[k]*cyi+cbi[k]*cyr+zzr[k]*zi+zzi[k]*zr;
+    if(oZ){let r=0,im=0;
+      if(inA){const pr=Ar[k],pi=Ai[k],qr=Ar[kn],qi=Ai[kn];
+        const cxr=(pr+qr)*.5,cxi=(pi-qi)*.5,cyr=(pi+qi)*.5,cyi=(qr-pr)*.5;
+        r=car[k]*cxr-cai[k]*cxi+cbr[k]*cyr-cbi[k]*cyi;im=car[k]*cxi+cai[k]*cxr+cbr[k]*cyi+cbi[k]*cyr;}
+      if(inZ){const zr=Zr[k],zi=Zi[k];r+=zzr[k]*zr-zzi[k]*zi;im+=zzr[k]*zi+zzi[k]*zr;}
+      O2r[k]=r;O2i[k]=im;
     }
   }
-  if(inP)fft2(O1r,O1i,true,CH);if(inZ)fft2(O2r,O2i,true,CH);
-  let bm=0;
+  if(inP)fft2(O1r,O1i,true,CH);if(oZ)fft2(O2r,O2i,true,CH);
+}
+// 1) campo externo: ímãs permanentes + correntes; 2) magnetização induzida no ferro por esse campo (sem
+// realimentação ferro→ferro: ⚠️ assumido; com χ alto a realimentação numa grade grossa diverge) somada por cima
+function magStep(){
+  tmx.fill(0);tmy.fill(0);tmz.fill(0);pmx.fill(0);pmy.fill(0);cxs.fill(0);cys.fill(0);magC.fill(0);
+  let nP=0,nI=0,iT=0;
+  for(let y=0;y<H;y++){const cr=(y>>SH)*CW;
+    for(let x=0;x<W;x++){const i=y*W+x,m=mat[i],c=cr+(x>>SH);
+      if(m===IMA){poleT[i]=-1;const a=mxA[i],b=myA[i];if(a||b){pmx[c]+=a*VOL;pmy[c]+=b*VOL;nP++;magC[c]=1;}}
+      else if(mgA[m]===1&&T[i]<tcA[m])nI++;
+      const ix=IxC[i],iy=IyC[i];if(ix!==0||iy!==0){cxs[c]+=ix*DX;cys[c]+=iy*DX;const a=(ix<0?-ix:ix)+(iy<0?-iy:iy);if(a>iT)iT=a;}
+    }}
+  const curOn=elecLive&&iT>.05;
+  if(!nP&&!curOn){if(magLive){magClear();magLive=false;}return;}
+  if(!Kcx) buildKernels();
+  magLive=true;
+  const SELF=MU0*.5/(VOL*CF*CF); // termo próprio da célula: B=μ0·M/2 (desmagnetização de quadrado 2D)
+  magConv(pmx,pmy,cxs,cys,null,nP>0,curOn,false);
   for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const c=cy*CW+cx,k=cy*FN+cx;
-    const bx=inP?O1r[k]:0,by=inP?O1i[k]:0,bz=inZ?O2r[k]:0;Bx[c]=bx;By[c]=by;Bz[c]=bz;const b=Math.sqrt(bx*bx+by*by+bz*bz);Bm[c]=b;if(b>bm)bm=b;}
+    Bx[c]=nP?O1r[k]+SELF*pmx[c]:0;By[c]=nP?O1i[k]+SELF*pmy[c]:0;Bz[c]=curOn?O2r[k]:0;}
+  if(nI){let any=false,anyZ=false;
+    for(let y=0;y<H;y++){const cr=(y>>SH)*CW;
+      for(let x=0;x<W;x++){const i=y*W+x,m=mat[i];if(mgA[m]!==1||!(T[i]<tcA[m]))continue;const c=cr+(x>>SH);
+        const bx=Bx[c],by=By[c],bz=Bz[c],b=Math.sqrt(bx*bx+by*by+bz*bz);
+        if(b>1e-9){let M=chiA[m]*b/MU0;if(M>msA[m])M=msA[m];const f=M*VOL/b;tmx[c]+=f*bx;tmy[c]+=f*by;tmz[c]+=f*bz;any=true;if(bz)anyZ=true;}}}
+    if(any){magConv(tmx,tmy,null,null,tmz,true,false,anyZ);
+      for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const c=cy*CW+cx,k=cy*FN+cx;
+        Bx[c]+=O1r[k];By[c]+=O1i[k];if(anyZ)Bz[c]+=O2r[k];}}
+  }
+  let bm=0;
+  for(let c=0;c<CN;c++){const bx=Bx[c],by=By[c],bz=Bz[c],b=Math.sqrt(bx*bx+by*by+bz*bz);Bm[c]=b;if(b>bm)bm=b;}
   bMax=bm;
   for(let cy=0;cy<CH;cy++)for(let cx=0;cx<CW;cx++){const c=cy*CW+cx;
     gBx[c]=cx>0&&cx<CW-1?(Bm[c+1]-Bm[c-1])/(2*HC):0;gBy[c]=cy>0&&cy<CH-1?(Bm[c+CW]-Bm[c-CW])/(2*HC):0;}
