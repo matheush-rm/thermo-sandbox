@@ -5,8 +5,10 @@ const GAS=1,LIQ=2,POW=3,MOV=4,FIX=5;
 const AR=0,PAREDE=1,AGUA=2,SALMOURA=3,OLEO=4,MERCURIO=5,MEL=6,ALCOOL=7,LAVA=8,N2L=9,ALUF=10,ACOF=11,
   ACO=12,CONCRETO=13,VIDRO=14,LATA=15,BASALTO=16,RESIST=17,MADEIRA=18,MADEIRAE=19,ISOPOR=20,ISOPORC=21,
   GELO=22,HGS=23,AREIA=24,SAL=25,CACOS=26,ENTULHO=27,SUCATA=28,CINZA=29,VAPOR=30,VALC=31,N2G=32,VHG=33,
-  FUMACA=34,FOGO=35,HELIO=36,NM=37;
-const ERASE=100,HEAT=101,COOL=102;
+  FUMACA=34,FOGO=35,HELIO=36,COBRE=37,COBREF=38,NICROMO=39,IMA=40,LIMALHA=41,FERROFL=42,FONTEP=43,FONTEN=44,
+  TERRA=45,NUVEM=46,GRANIZO=47,NM=48;
+const ERASE=100,HEAT=101,COOL=102,CHGP=103,CHGN=104,FLIP=105,SPARK=106;
+const CONT={[HEAT]:1,[COOL]:1,[CHGP]:1,[CHGN]:1,[SPARK]:1}; // ferramentas aplicadas continuamente
 
 // hi/lo: [tipo(1 const,2 ebulição C-C,3 Clapeyron linear), T0(K), Lm(J/mol) ou dT/dP, destino, latente(K eq.), Tcrítica]
 const D=[];
@@ -47,6 +49,34 @@ D[VHG]      ={n:'Vapor de mercúrio',kind:GAS,M:.2006,gam:1.67,cpg:104,k:.008,co
 D[FUMACA]   ={n:'Fumaça',kind:GAS,M:.029,gam:1.4,cpg:1005,k:.026,col:[80,80,84],a:.6};
 D[FOGO]     ={n:'Fogo',kind:GAS,M:.029,gam:1.4,cpg:1005,k:.06,col:[255,130,30],a:1,T0:1300};
 D[HELIO]    ={n:'Hélio',kind:GAS,M:.004,gam:1.67,cpg:5193,k:.15,col:[235,170,215],a:.3};
+D[COBRE]    ={n:'Cobre',kind:FIX,rho:8960,k:400,C:3.45,col:[196,112,62],var:10,hi:[1,1358,0,COBREF,530]};
+D[COBREF]   ={n:'Cobre fundido',kind:LIQ,rho:8000,k:160,C:4.2,beta:1e-4,kap:2e-11,mob:.8,disp:2,col:[255,150,90],var:10,lo:[1,1358,0,COBRE,530],T0:1450};
+D[NICROMO]  ={n:'Nicromo',kind:FIX,rho:8400,k:11.3,C:3.8,col:[126,116,104],var:6,hi:[1,1673,0,ACOF,300]};
+D[IMA]      ={n:'Ímã (NdFeB)',kind:FIX,rho:7500,k:9,C:3.3,col:[78,80,90],var:4,hi:[1,1583,0,ACOF,300]};
+D[LIMALHA]  ={n:'Limalha de ferro',kind:POW,rho:3900,k:5,C:1.8,col:[74,76,84],var:22,hi:[1,1811,0,ACOF,250]};
+D[FERROFL]  ={n:'Ferrofluido',kind:LIQ,rho:1250,k:.2,C:2.0,beta:7e-4,kap:6e-10,mob:.5,disp:3,col:[26,24,30],var:6};
+D[FONTEP]   ={n:'Polo + (fonte)',kind:FIX,rho:8000,k:50,C:3.5,col:[214,52,48],var:4};
+D[FONTEN]   ={n:'Polo − (fonte)',kind:FIX,rho:8000,k:50,C:3.5,col:[48,92,222],var:4};
+D[TERRA]    ={n:'Terra (aterramento)',kind:FIX,rho:2000,k:1,C:2,col:[72,98,58],var:10};
+D[NUVEM]    ={n:'Nuvem',kind:GAS,M:.029,gam:1.4,cpg:1005,k:.026,col:[196,202,214],a:.8,var:14,hi:[2,373.15,40660,VAPOR,30,647]};
+D[GRANIZO]  ={n:'Granizo (graupel)',kind:POW,rho:700,k:2,C:1.4,col:[226,236,246],var:14,hi:[1,273.15,0,AGUA,80],T0:258};
+
+// elétrico: [σ condutividade S/m, εr permissividade relativa, rigidez dielétrica MV/m (0 = não rompe)]
+const EL={
+ [AR]:[3e-15,1,3],[PAREDE]:[0,1,0],[AGUA]:[5e-3,80,0],[SALMOURA]:[5,75,0],[OLEO]:[1e-12,2.2,15],[MERCURIO]:[1.04e6,1,0],
+ [MEL]:[2e-2,20,0],[ALCOOL]:[1.35e-7,24,10],[LAVA]:[10,10,0],[N2L]:[1e-16,1.43,20],[ALUF]:[4e6,1,0],[ACOF]:[7e5,1,0],
+ [ACO]:[6e6,1,0],[CONCRETO]:[1e-6,5,3],[VIDRO]:[1e-12,6,10],[LATA]:[3.5e7,1,0],[BASALTO]:[1e-6,8,15],[RESIST]:[9e5,1,0],
+ [MADEIRA]:[1e-12,3,5],[MADEIRAE]:[1e-4,20,0],[ISOPOR]:[1e-16,1.03,2],[ISOPORC]:[1e-15,1.2,4],[GELO]:[1e-8,3.2,10],[HGS]:[4e6,1,0],
+ [AREIA]:[1e-9,4,3],[SAL]:[1e-12,6,10],[CACOS]:[1e-12,6,10],[ENTULHO]:[1e-7,5,3],[SUCATA]:[1e5,1,0],[CINZA]:[1e-8,3,3],
+ [VAPOR]:[1e-14,1,2.7],[VALC]:[1e-14,1,3],[N2G]:[1e-15,1,3.4],[VHG]:[1e-14,1,1],[FUMACA]:[1e-13,1,2.5],[FOGO]:[1e-4,1,.6],[HELIO]:[1e-15,1,.45],
+ [COBRE]:[5.96e7,1,0],[COBREF]:[5e6,1,0],[NICROMO]:[9.1e5,1,0],[IMA]:[6.7e5,1,0],[LIMALHA]:[1e3,1,0],[FERROFL]:[1e-8,5,10],
+ [FONTEP]:[6e7,1,0],[FONTEN]:[6e7,1,0],[TERRA]:[6e7,1,0],[NUVEM]:[1e-13,1,1],[GRANIZO]:[1e-9,3.2,10]
+};
+// coef. térmico da resistividade (1/K)
+const ALPHA={[COBRE]:.0039,[LATA]:.0039,[ACO]:.005,[NICROMO]:.0004,[MERCURIO]:.0009,[IMA]:.001,[ALUF]:.001,[COBREF]:.001,[ACOF]:.001};
+// magnético: [1 = ferromagneto mole / 2 = ímã permanente, Ms saturação A/m, χ efetivo (com desmagnetização), T Curie K]
+const MG={[ACO]:[1,1.6e6,2.9,1043],[LIMALHA]:[1,8e5,2.5,1043],[FERROFL]:[1,4.5e4,1.2,850],[IMA]:[2,9.5e5,0,583]};
+const SRC={[FONTEP]:1,[FONTEN]:2,[TERRA]:3}; // potencial fixo: +V/2, −V/2, 0
 
 // compila em arrays tipados
 const kind=new Uint8Array(NM),rho0=new Float32Array(NM),betaA=new Float32Array(NM),bkA=new Float32Array(NM),
@@ -55,8 +85,12 @@ const kind=new Uint8Array(NM),rho0=new Float32Array(NM),betaA=new Float32Array(N
   ignA=new Float32Array(NM),flA=new Float32Array(NM),fspA=new Float32Array(NM),T0A=new Float32Array(NM),shockA=new Float32Array(NM),
   hiTy=new Uint8Array(NM),hiT=new Float32Array(NM),hiLm=new Float64Array(NM),hiTo=new Uint8Array(NM),hiL=new Float32Array(NM),hiCap=new Float32Array(NM),
   loTy=new Uint8Array(NM),loT=new Float32Array(NM),loLm=new Float64Array(NM),loTo=new Uint8Array(NM),loL=new Float32Array(NM),loCap=new Float32Array(NM),
-  actA=new Uint8Array(NM),fillA=new Float32Array(NM);
-for(let m=0;m<NM;m++){const d=D[m];
+  actA=new Uint8Array(NM),fillA=new Float32Array(NM),
+  sigA=new Float64Array(NM),epsA=new Float32Array(NM),ebA=new Float32Array(NM),alA=new Float32Array(NM),srcA=new Uint8Array(NM),
+  mgA=new Uint8Array(NM),msA=new Float32Array(NM),chiA=new Float32Array(NM),tcA=new Float32Array(NM),mgMov=new Uint8Array(NM);
+for(let m=0;m<NM;m++){const d=D[m],e=EL[m],g=MG[m];
+  sigA[m]=e[0]; epsA[m]=e[1]; ebA[m]=e[2]*1e6; alA[m]=ALPHA[m]||0; srcA[m]=SRC[m]||0;
+  if(g){mgA[m]=g[0];msA[m]=g[1];chiA[m]=g[2];tcA[m]=g[3];mgMov[m]=g[0]===1&&d.kind!==FIX?1:0;}
   kind[m]=d.kind; rho0[m]=d.rho||0; betaA[m]=d.beta||1e-5; bkA[m]=d.kap?d.beta/d.kap:0;
   kc[m]=d.k*HS; CvA[m]=d.C||0; molar[m]=d.M||0; gexp[m]=d.gam?(d.gam-1)/d.gam:0; cpgA[m]=d.cpg||0;
   mobA[m]=d.mob||1; dispA[m]=d.disp||1; strA[m]=d.str||0; crushA[m]=d.crush||0;
@@ -71,6 +105,16 @@ for(let m=0;m<NM;m++){const d=D[m];
 const mat=new Uint8Array(N),shade=new Uint8Array(N),life=new Uint8Array(N),mv=new Uint8Array(N),vis=new Uint8Array(N);
 const T=new Float32Array(N),tOld=new Float32Array(N),pp=new Float32Array(N),gd=new Float32Array(N),lat=new Float32Array(N),st=new Float32Array(N),rhoA=new Float32Array(N);
 let P=new Float32Array(N),Pn=new Float32Array(N);
+// carga (C por célula), ionização (0..1), magnetização permanente (A/m)
+const chg=new Float64Array(N),ion=new Float32Array(N),mxA=new Float32Array(N),myA=new Float32Array(N),flipMk=new Uint16Array(N);
+let Vsrc=100,qAmt=1e-7,magDir=0,storm=false,wind=0,elecLive=false,magLive=false,vScale=1,iMax=0,strokeId=1;
+const CBASE=100; // base da nuvem (linha) no modo tempestade
+function si(v,u,d){const a=Math.abs(v);if(a===0)return '0 '+u;
+  const P=[[1e9,'G'],[1e6,'M'],[1e3,'k'],[1,''],[1e-3,'m'],[1e-6,'µ'],[1e-9,'n'],[1e-12,'p'],[1e-15,'f']];
+  for(const [f,p] of P) if(a>=f*.9995) return (v/f).toFixed(d===undefined?(a/f<10?2:a/f<100?1:0):d)+' '+p+u;
+  return v.toExponential(1)+' '+u;}
+const fmtV=v=>si(v,'V'),fmtQ=v=>si(v,'C'),fmtI=v=>si(v,'A'),fmtB=v=>si(v,'T'),fmtE=v=>si(v,'V/m');
+const fmtS=s=>s===0?'0':s.toExponential(1).replace('e+','·10^').replace('e-','·10^-');
 const q=new Int32Array(N);
 let stamp=1,gm=1,heaterT=773.15,power=4,lid=false,paused=false,steps=2,view=1;
 
@@ -97,7 +141,7 @@ function tb(T0,Lm,cap,p){ // Clausius–Clapeyron
 }
 
 function setCell(i,m,t){
-  mat[i]=m;T[i]=t;tOld[i]=t;lat[i]=0;life[i]=0;shade[i]=(rnd()*8)|0;st[i]=0;
+  mat[i]=m;T[i]=t;tOld[i]=t;lat[i]=0;life[i]=0;shade[i]=(rnd()*8)|0;st[i]=0;chg[i]=0;ion[i]=0;mxA[i]=0;myA[i]=0;
   const p=P[i]>0?P[i]:PATM; pp[i]=p;
   gd[i]=kind[m]===GAS?p*molar[m]/(RG*t):0;
   if(m===FOGO){life[i]=60+(rnd()*60|0);lat[i]=0;}
@@ -123,14 +167,17 @@ function swap(i,j){
   f=pp[i];pp[i]=pp[j];pp[j]=f;
   f=gd[i];gd[i]=gd[j];gd[j]=f;
   f=lat[i];lat[i]=lat[j];lat[j]=f;
+  f=chg[i];chg[i]=chg[j];chg[j]=f; // carga viaja com a matéria (chuva, granizo)
+  f=ion[i];ion[i]=ion[j];ion[j]=f;
   mv[i]=stamp;mv[j]=stamp;
 }
-function copyFrom(i,j){mat[i]=mat[j];T[i]=T[j];tOld[i]=tOld[j];pp[i]=pp[j];gd[i]=gd[j];lat[i]=0;life[i]=0;}
+function copyFrom(i,j){mat[i]=mat[j];T[i]=T[j];tOld[i]=tOld[j];pp[i]=pp[j];gd[i]=gd[j];lat[i]=0;life[i]=0;chg[i]=0;}
 
 // ================= movimento (empuxo, gravidade, viscosidade) =================
 function moveStep(){
   stamp=stamp>=255?1:stamp+1;
   const gOn=gm>0.02,gf=gm<1?gm:1;
+  const ext=elecLive||magLive,wS=wind>0?1:-1,wP=Math.abs(wind)*.06;
   for(let y=H-2;y>=0;y--){
     const row=y*W,ltr=rnd()<.5;
     for(let xx=1;xx<W-1;xx++){
@@ -147,6 +194,11 @@ function moveStep(){
         continue;
       }
       if(y===0) continue;
+      // forças elétrica (qE) e magnética (M·∇|B|)
+      if(ext&&k!==GAS&&(mgMov[m]||chg[i]>1e-11||chg[i]<-1e-11)&&extMove(i,m,k,x,y)) continue;
+      // vento empurra gotas/grãos em queda livre
+      if(wP>0&&k!==GAS&&k!==MOV&&kj===GAS&&rnd()<wP*(k===LIQ?.6:.4)){const jj=i+wS;if(mv[jj]!==stamp&&kind[mat[jj]]===GAS){swap(i,jj);continue;}}
+      if(m===GRANIZO&&storm&&y<CBASE&&rnd()<.8) continue; // corrente ascendente sustenta o graupel
       const ri=densOf(i);
       if(gOn&&mv[j]!==stamp&&(kj===GAS||kj===LIQ||((kj===POW||kj===MOV)&&(k===LIQ||k===GAS)))){
         const rj=densOf(j);
@@ -159,6 +211,7 @@ function moveStep(){
       if(k===MOV) continue;
       const d=rnd()<.5?1:-1;
       if(k===GAS){
+        if(wP>0&&rnd()<wP){const jw=i+wS;if(mv[jw]!==stamp&&kind[mat[jw]]===GAS&&mat[jw]!==m){swap(i,jw);continue;}}
         const jj=i+d,mm=mat[jj];
         if(mv[jj]!==stamp&&kind[mm]===GAS&&mm!==m&&rnd()<.35) swap(i,jj);
         continue;
@@ -338,6 +391,7 @@ function stateStep(){
       if(!actA[m]) continue;
       if(m===FOGO){fire(i);continue;}
       if(m===RESIST){T[i]=heaterT;continue;}
+      if(m===IMA&&T[i]>tcA[m]&&(mxA[i]||myA[i])){mxA[i]=0;myA[i]=0;} // acima de Curie: desmagnetiza (irreversível)
       if(m===FUMACA){ if(rnd()<.5){ if(life[i]>0) life[i]--; else {mat[i]=AR;gd[i]=P[i]*molar[AR]/(RG*T[i]);} } continue; }
       const k=kind[m],p=P[i];
       if(m===SAL){
@@ -392,7 +446,7 @@ function stateStep(){
   }
   if(!lid){ // topo aberto: reservatório atmosférico
     const g0=PATM*molar[AR]/(RG*293.15);
-    for(let x=1;x<W-1;x++){ if(mat[x]!==AR) mat[x]=AR; T[x]=293.15; gd[x]=g0; pp[x]=PATM; lat[x]=0; }
+    for(let x=1;x<W-1;x++){ if(mat[x]!==AR) mat[x]=AR; T[x]=293.15; gd[x]=g0; pp[x]=PATM; lat[x]=0; chg[x]=0; ion[x]=0; }
   }
 }
 
@@ -406,7 +460,16 @@ function paintAt(cx,cy,tl){
     if(x<1||x>W-2||y<1||y>H-2) continue;
     const i=y*W+x,cm=mat[i];
     if(cm===PAREDE) continue;
-    if(tl===ERASE){ if(cm!==AR) setCell(i,AR,293.15); continue; }
+    if(tl===ERASE){ if(cm!==AR) setCell(i,AR,293.15); else chg[i]=0; continue; }
+    if(tl===CHGP||tl===CHGN){ if(!srcA[cm]) chg[i]+=tl===CHGP?qAmt:-qAmt; continue; }
+    if(tl===SPARK){ ion[i]=1; continue; }
+    if(tl===FLIP){ // inverte carga, polo do ímã e polaridade da fonte (uma vez por traço)
+      if(flipMk[i]===strokeId) continue; flipMk[i]=strokeId;
+      chg[i]=-chg[i];
+      if(cm===IMA){mxA[i]=-mxA[i];myA[i]=-myA[i];}
+      else if(cm===FONTEP) mat[i]=FONTEN; else if(cm===FONTEN) mat[i]=FONTEP;
+      continue;
+    }
     if(tl===HEAT||tl===COOL){
       const C=capOf(i,cm); let dT=power/C; if(dT>80)dT=80;
       if(tl===HEAT){T[i]+=dT;if(T[i]>4000)T[i]=4000;} else {T[i]-=dT;if(T[i]<2)T[i]=2;}
@@ -417,8 +480,11 @@ function paintAt(cx,cy,tl){
     if(k===FIX){ if(!shiftKey&&ck===FIX) continue; }
     else { if(!shiftKey&&ck!==GAS) continue; if(rnd()>fillA[tl]) continue; }
     setCell(i,tl,tl===RESIST?heaterT:T0A[tl]);
+    if(tl===IMA) magnetize(i,magDir);
   }
 }
+const MDX=[0,1,0,-1],MDY=[-1,0,1,0]; // direção do polo N: ↑ → ↓ ←
+function magnetize(i,d){mxA[i]=MDX[d]*msA[IMA];myA[i]=MDY[d]*msA[IMA];}
 function paintLine(x0,y0,x1,y1,tl){
   const n=Math.max(Math.abs(x1-x0),Math.abs(y1-y0),1);
   const stepN=Math.max(1,Math.floor(brush/2));
@@ -429,8 +495,9 @@ function paintLine(x0,y0,x1,y1,tl){
 // ================= cenários =================
 function rectM(x0,y0,x1,y1,m,t){for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){if(x<1||x>W-2||y<1||y>H-2)continue;setCell(y*W+x,m,t===undefined?(m===RESIST?heaterT:T0A[m]):t);}}
 function boxM(x0,y0,x1,y1,th,m){rectM(x0,y0,x1,y0+th-1,m);rectM(x0,y1-th+1,x1,y1,m);rectM(x0,y0,x0+th-1,y1,m);rectM(x1-th+1,y0,x1,y1,m);}
+function magRect(x0,y0,x1,y1,d){rectM(x0,y0,x1,y1,IMA);for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)magnetize(y*W+x,d);}
 function clearAll(){
-  P.fill(PATM);
+  P.fill(PATM); emReset();
   for(let i=0;i<N;i++) setCell(i,AR,293.15);
   for(let x=0;x<W;x++){setCell(x+(H-1)*W,PAREDE,293.15); if(lid) setCell(x,PAREDE,293.15);}
   for(let y=0;y<H;y++){setCell(y*W,PAREDE,293.15);setCell(y*W+W-1,PAREDE,293.15);}
@@ -471,6 +538,40 @@ const PRESETS={
     rectM(60,40,140,43,ACO); rectM(60,44,63,150,ACO); rectM(137,44,140,150,ACO); rectM(64,44,136,150,AR);
     rectM(98,1,102,39,ACO);
     rectM(80,186,120,190,ISOPOR); rectM(150,175,160,185,HELIO);
+  },
+  storm(){ // tempestade: nuvem se forma, graupel carrega, raio procura o caminho de maior campo
+    clearAll(); setStorm(true); setWind(1.5);
+    rectM(1,186,198,198,AREIA); rectM(110,180,170,198,AGUA);
+    rectM(28,150,31,185,MADEIRA); rectM(18,136,42,152,MADEIRA);        // árvore
+    rectM(150,148,175,179,CONCRETO); rectM(161,128,163,185,ACO);        // prédio + para-raios até o solo
+    rectM(161,186,163,198,ACO); rectM(156,196,168,198,TERRA);
+    rectM(70,176,90,185,LATA);
+  },
+  circuit(){ // fonte, fios de cobre, nicromo aquecendo, eletrólito e limalha ao redor do fio
+    clearAll(); setVolt(150);
+    rectM(20,40,24,52,FONTEP); rectM(20,56,24,68,FONTEN);
+    rectM(25,44,180,46,COBRE); rectM(25,62,90,64,COBRE);
+    rectM(178,47,180,150,COBRE);
+    rectM(110,148,177,150,COBRE); rectM(90,148,109,150,NICROMO);      // nicromo: maior resistência → esquenta
+    rectM(60,148,89,150,COBRE); rectM(58,65,60,150,COBRE); rectM(61,62,90,64,AR);
+    rectM(58,62,60,64,COBRE);
+    boxM(120,110,170,140,1,VIDRO); rectM(121,111,169,139,SALMOURA);   // eletrólito em paralelo
+    rectM(130,47,132,112,COBRE); rectM(158,112,160,147,COBRE);
+    rectM(60,90,120,110,LIMALHA);
+  },
+  magnets(){ // ímãs, limalha mostrando o campo, ferrofluido e barra de aço
+    clearAll();
+    magRect(40,60,70,72,1); magRect(130,60,160,72,3);                // polos N frente a frente: repelem campo
+    magRect(92,166,108,181,0);
+    boxM(76,184,124,198,1,VIDRO); rectM(77,187,123,197,FERROFL);
+    rectM(30,120,70,124,ACO);
+    rectM(20,20,180,34,LIMALHA);
+  },
+  tesla(){ // eletrodo de alta tensão: descargas buscam a ponta mais próxima/condutora
+    clearAll(); setVolt(1e7);
+    rectM(80,30,120,40,FONTEP); rectM(95,41,105,46,COBRE); rectM(100,47,100,62,COBRE); // agulha: ponta concentra o campo
+    rectM(30,150,33,198,ACO); rectM(100,175,130,198,CONCRETO); rectM(150,140,170,198,MADEIRA);
+    rectM(1,190,29,198,AGUA); rectM(171,192,198,198,AREIA);
   }
 };
 
@@ -505,8 +606,16 @@ function blend(c1,c2,a){
 function dim(c,f){return pack(((c&255)*f)|0,(((c>>>8)&255)*f)|0,(((c>>>16)&255)*f)|0);}
 const BGC=pack(BG[0],BG[1],BG[2]),RED=pack(255,40,30);
 let pRange=20000,cntP=0,maxT=0,maxG=0;
+const PLC=pack(228,230,255),VPOS=pack(255,78,40),VNEG=pack(40,124,255),YEL=pack(255,226,90),QPOS=pack(255,186,160),QNEG=pack(160,200,255),
+  NCOL=pack(228,48,44),SCOL=pack(46,98,232),MCOL=pack(96,96,108);
+const MST=[[0,[0,0,4]],[.25,[80,18,123]],[.5,[183,55,121]],[.75,[251,135,97]],[1,[252,253,191]]];
+const mlut=new Uint32Array(256); for(let i=0;i<256;i++){const c=lerpStops(MST,i/255);mlut[i]=pack(c[0]|0,c[1]|0,c[2]|0);}
+const plasmaL=new Int32Array(3000); let plasmaN=0;
+function poleC(i,c){const t=poleT[i]; if(t<0) return c; // polo N vermelho, S azul
+  return t>.5?blend(MCOL,NCOL,Math.min(1,(t-.5)*2.4)):blend(MCOL,SCOL,Math.min(1,(.5-t)*2.4));}
 function render(){
   const v=view,pr=pRange; let mg=0,cnt=0,mt=0;
+  const ivs=1/vScale,ith=Math.max(1e-3,iMax*1e-4),qth=1e-9; plasmaN=0;
   for(let i=0;i<N;i++){
     const m=mat[i],k=kind[m];
     let c=pal[(m<<3)|(shade[i]&7)];
@@ -514,9 +623,23 @@ function render(){
     if(m!==AR&&m!==PAREDE){cnt++; if(t>mt)mt=t;}
     if(k===LIQ){const g=P[i]-PATM; if(g>mg)mg=g;}
     if(v===0){
+      if(m===IMA) c=poleC(i,c);
       if(m===FOGO){const f=(life[i]&7)/7; c=pack(255,(110+f*120)|0,(20+f*40)|0);}
       else if(t>700&&k!==GAS){const ti=t>4000?4000:t|0,a=glA[ti];c=blend(c,pack(glR[ti],glG[ti],glB[ti]),a);}
       else if(m===AR&&t>330){let a=(t-330)/900;if(a>.5)a=.5;c=blend(c,pack(150,60,20),a);}
+    }else if(v===3){ // potencial elétrico (divergente), corrente e carga
+      const vv=Vf[i]*ivs; let s=vv<0?-vv:vv; s=s>1?1:Math.sqrt(s);
+      const vc=blend(BGC,vv>=0?VPOS:VNEG,s);
+      c=k===GAS?vc:blend(dim(c,.5),vc,.55);
+      const ia=(IxC[i]<0?-IxC[i]:IxC[i])+(IyC[i]<0?-IyC[i]:IyC[i]);
+      if(ia>ith){let a=Math.log10(ia/ith)*.2+.3;if(a>.9)a=.9;c=blend(c,YEL,a);}
+      const qq=chg[i]; if(qq>qth||qq<-qth){let a=Math.log10((qq<0?-qq:qq)/qth)*.25+.45;if(a>1)a=1;c=blend(c,qq>0?QPOS:QNEG,a);}
+    }else if(v===4){ // |B| (escala log) com polos
+      const b=Bfine[i]; let tb=b>1e-5?(Math.log10(b)+5)*.2:0; if(tb>1)tb=1;
+      const mc=mlut[(tb*255)|0];
+      if(m===IMA) c=blend(poleC(i,c),mc,.12);
+      else if(mgA[m]) c=blend(c,mc,.3);
+      else c=k===GAS?mc:blend(dim(c,.4),mc,.6);
     }else if(v===1){
       if(k===FIX){
         c=dim(c,.55); const s=st[i]; if(s>.02) c=blend(c,RED,s>1?.9:s*.9);
@@ -531,6 +654,8 @@ function render(){
       let ti=t|0; if(ti<0)ti=0; else if(ti>4000)ti=4000;
       c=k===GAS?blend(BGC,tlut[ti],m===AR?.7:.85):(k===LIQ?tlut[ti]:blend(tlut[ti],c,.18));
     }
+    const io=ionL[i]; // canal de plasma (raio/arco) visível em todas as vistas
+    if(io>.03){c=blend(c,PLC,io>1?1:io); if(io>.2&&plasmaN<plasmaL.length) plasmaL[plasmaN++]=i;}
     u32[i]=c;
   }
   ctx.putImageData(img,0,0);
@@ -565,7 +690,21 @@ const IC={
  [FOGO]:'<svg viewBox="0 0 32 32"><path d="M16 3c1 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-10 1 3 2 4 3 4-1-4 0-8 2-11z" fill="#ff6a1a"/><path d="M16 14c.6 3 5 5 5 9a5 5 0 0 1-10 0c0-2.5 1.5-3.5 2-5 .8 1.4 1.4 2 2 2-.5-2 0-4 1-6z" fill="#ffd34a"/></svg>',
  [ERASE]:'<svg viewBox="0 0 32 32"><path d="M18 5l9 9-12 12H9l-5-5z" fill="#f08fa8"/><path d="M11.5 11.5l9 9" stroke="#fff" stroke-width="3"/><path d="M8 27h18" stroke="#7d8597" stroke-width="1.5" stroke-linecap="round"/></svg>',
  [HEAT]:'<svg viewBox="0 0 32 32"><rect x="13" y="4" width="6" height="17" rx="3" fill="none" stroke="#e6e9ef" stroke-width="1.5"/><circle cx="16" cy="24" r="5" fill="#ff4a3a"/><rect x="14.6" y="10" width="2.8" height="12" fill="#ff4a3a"/><path d="M24 8c-1.5 1.5 1.5 3 0 4.5M27 6c-1.5 1.5 1.5 3 0 4.5" stroke="#ff9a6a" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>',
- [COOL]:'<svg viewBox="0 0 32 32"><g stroke="#7fd6ff" stroke-width="2" stroke-linecap="round"><path d="M16 4v24M5.6 10l20.8 12M5.6 22l20.8-12"/><path d="M13 6.5l3 2.5 3-2.5M13 25.5l3-2.5 3 2.5M6.5 14l3.7-.8-1-3.6M25.5 18l-3.7.8 1 3.6M6.5 18l3.7.8-1 3.6M25.5 14l-3.7-.8 1-3.6"/></g></svg>'
+ [COOL]:'<svg viewBox="0 0 32 32"><g stroke="#7fd6ff" stroke-width="2" stroke-linecap="round"><path d="M16 4v24M5.6 10l20.8 12M5.6 22l20.8-12"/><path d="M13 6.5l3 2.5 3-2.5M13 25.5l3-2.5 3 2.5M6.5 14l3.7-.8-1-3.6M25.5 18l-3.7.8 1 3.6M6.5 18l3.7.8-1 3.6M25.5 14l-3.7-.8 1-3.6"/></g></svg>',
+ [COBRE]:'<svg viewBox="0 0 32 32"><g fill="none" stroke="#d27a42" stroke-width="2.6"><ellipse cx="10" cy="16" rx="3" ry="8"/><ellipse cx="16" cy="16" rx="3" ry="8"/><ellipse cx="22" cy="16" rx="3" ry="8"/></g><path d="M3 16h4M25 16h4" stroke="#f0a070" stroke-width="2.2" stroke-linecap="round"/></svg>',
+ [NICROMO]:'<svg viewBox="0 0 32 32"><path d="M3 20h4l2-8 3 12 3-12 3 12 3-12 3 12 2-4h3" fill="none" stroke="#ff7a3a" stroke-width="2.2" stroke-linejoin="round"/><path d="M3 20h4l2-8 3 12 3-12 3 12 3-12 3 12 2-4h3" fill="none" stroke="#ffd9a0" stroke-width=".8" stroke-linejoin="round"/></svg>',
+ [IMA]:'<svg viewBox="0 0 32 32"><rect x="4" y="10" width="12" height="12" fill="#e03530"/><rect x="16" y="10" width="12" height="12" fill="#2e62e8"/><text x="10" y="19.5" font-size="8" text-anchor="middle" fill="#fff" font-family="sans-serif" font-weight="700">N</text><text x="22" y="19.5" font-size="8" text-anchor="middle" fill="#fff" font-family="sans-serif" font-weight="700">S</text></svg>',
+ [LIMALHA]:'<svg viewBox="0 0 32 32"><g stroke="#9aa0ac" stroke-width="1.6" stroke-linecap="round"><path d="M6 8l3 2M13 6l3 1M21 7l3 2M5 15l3 1M12 13l3 2M20 14l3 1M26 16l2 2M7 22l3 1M14 21l3 2M22 22l3 1M10 27l3 1M18 27l3 1"/></g></svg>',
+ [FERROFL]:'<svg viewBox="0 0 32 32"><path d="M4 26c3 0 4-3 6-3 1-6 2-12 3-15 1 3 2 9 3 15 1-5 2-10 3-12 1 2 2 7 3 12 2 0 3 3 6 3z" fill="#1c1a22" stroke="#6a6680"/></svg>',
+ [FONTEP]:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="#d6342f"/><path d="M16 10v12M10 16h12" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>',
+ [FONTEN]:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="#305cde"/><path d="M10 16h12" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>',
+ [TERRA]:'<svg viewBox="0 0 32 32"><path d="M16 4v12M6 16h20M10 21h12M14 26h4" stroke="#8fc070" stroke-width="2.4" stroke-linecap="round"/></svg>',
+ [NUVEM]:'<svg viewBox="0 0 32 32"><path d="M8 24a5 5 0 0 1 0-10 7 7 0 0 1 13-3 5.5 5.5 0 0 1 3 13z" fill="#b9c0cc"/><path d="M14 24l-2 5M19 24l-2 5" stroke="#5aa0ff" stroke-width="1.6" stroke-linecap="round"/></svg>',
+ [GRANIZO]:'<svg viewBox="0 0 32 32"><g fill="#eef6ff" stroke="#9cc0dd"><circle cx="10" cy="10" r="4"/><circle cx="21" cy="13" r="3.2"/><circle cx="13" cy="21" r="3.6"/><circle cx="23" cy="24" r="2.6"/></g></svg>',
+ [CHGP]:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#ff7a60" stroke-width="2"/><path d="M16 10v12M10 16h12" stroke="#ffb09a" stroke-width="3" stroke-linecap="round"/></svg>',
+ [CHGN]:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="#5a9cff" stroke-width="2"/><path d="M10 16h12" stroke="#a8c8ff" stroke-width="3" stroke-linecap="round"/></svg>',
+ [FLIP]:'<svg viewBox="0 0 32 32"><path d="M7 12a9 9 0 0 1 16-3l2-2v7h-7l2.5-2.5A6 6 0 0 0 10 13z" fill="#e8665c"/><path d="M25 20a9 9 0 0 1-16 3l-2 2v-7h7l-2.5 2.5A6 6 0 0 0 22 19z" fill="#4f86ec"/></svg>',
+ [SPARK]:'<svg viewBox="0 0 32 32"><path d="M18 2L7 18h7l-3 12 13-17h-7l4-11z" fill="#e6e8ff" stroke="#8f9cff" stroke-width="1.2" stroke-linejoin="round"/></svg>'
 };
 const fmtP=p=>p>=1e6?(p/1e6).toFixed(2)+' MPa':(p/1e3).toFixed(p<1e4?1:0)+' kPa';
 const DESC={
@@ -591,17 +730,35 @@ const DESC={
  [VAPOR]:'gás M 18 g/mol · condensa abaixo de Teb(P)',
  [HELIO]:'gás M 4 g/mol · sobe rápido',
  [FOGO]:'combustão · gás quente sobe',
- [ERASE]:'remove (botão direito)',[HEAT]:'injeta calor: ΔT = Q/(ρc)',[COOL]:'retira calor'
+ [ERASE]:'remove (botão direito)',[HEAT]:'injeta calor: ΔT = Q/(ρc)',[COOL]:'retira calor',
+ [COBRE]:'σ 5,96·10⁷ S/m · ótimo condutor · funde 1085 °C',
+ [NICROMO]:'σ 9,1·10⁵ S/m · resistivo → aquece por efeito Joule',
+ [IMA]:'NdFeB · Br ≈ 1,2 T · perde magnetização acima de 310 °C (Curie) · direção N no seletor "Polo N"',
+ [LIMALHA]:'ferro em pó · atraído por ∇|B| · mostra o campo',
+ [FERROFL]:'líquido magnético · Ms 45 kA/m · sobe até o ímã',
+ [FONTEP]:'terminal positivo: potencial fixo +V/2 (ajuste "Tensão")',
+ [FONTEN]:'terminal negativo: potencial fixo −V/2',
+ [TERRA]:'aterramento: potencial 0 (o piso da câmara também é terra)',
+ [NUVEM]:'gotículas/cristais suspensos · com graupel separa cargas',
+ [GRANIZO]:'graupel · colisões com cristais de gelo transferem carga (− abaixo de −15 °C, + acima)',
+ [CHGP]:'deposita carga positiva (C/célula ajustável)',[CHGN]:'deposita carga negativa',
+ [FLIP]:'inverte: sinal da carga, polo do ímã, polaridade da fonte',
+ [SPARK]:'ioniza o meio (gatilho de arco)'
 };
 const GROUPS=[
  ['Líquidos',[AGUA,SALMOURA,OLEO,MERCURIO,MEL,ALCOOL,LAVA,N2L]],
  ['Sólidos fixos',[ACO,CONCRETO,VIDRO,LATA,BASALTO,RESIST]],
  ['Soltos',[MADEIRA,ISOPOR,GELO,AREIA,SAL]],
  ['Gases',[VAPOR,HELIO,FOGO]],
- ['Ferramentas',[ERASE,HEAT,COOL]]
+ ['Elétrica',[COBRE,NICROMO,FONTEP,FONTEN,TERRA]],
+ ['Magnetismo',[IMA,LIMALHA,FERROFL]],
+ ['Clima',[NUVEM,GRANIZO]],
+ ['Ferramentas',[ERASE,HEAT,COOL,CHGP,CHGN,FLIP,SPARK]]
 ];
-const SUB={[ERASE]:'',[HEAT]:'+Q',[COOL]:'−Q',[RESIST]:'aquecedor',[FOGO]:'~1100 °C',[VAPOR]:'gás',[HELIO]:'gás'};
-const NAMES={[ERASE]:'Borracha',[HEAT]:'Aquecer',[COOL]:'Resfriar'};
+const SUB={[ERASE]:'',[HEAT]:'+Q',[COOL]:'−Q',[RESIST]:'aquecedor',[FOGO]:'~1100 °C',[VAPOR]:'gás',[HELIO]:'gás',
+  [COBRE]:'6·10⁷ S/m',[NICROMO]:'9·10⁵ S/m',[FONTEP]:'+V/2',[FONTEN]:'−V/2',[TERRA]:'0 V',[IMA]:'1,2 T',[LIMALHA]:'ferromag.',
+  [FERROFL]:'ferromag.',[NUVEM]:'gás',[GRANIZO]:'ρ 700',[CHGP]:'+q',[CHGN]:'−q',[FLIP]:'±',[SPARK]:'plasma'};
+const NAMES={[ERASE]:'Borracha',[HEAT]:'Aquecer',[COOL]:'Resfriar',[CHGP]:'Carga +',[CHGN]:'Carga −',[FLIP]:'Inverter polo',[SPARK]:'Faísca'};
 const palEl=document.getElementById('palette');
 for(const [g,list] of GROUPS){
   const grp=document.createElement('div');grp.className='grp';
@@ -625,6 +782,15 @@ const heaterEl=bindRange('sHeater','oHeater',v=>heaterT=v+273.15,v=>v+' °C');
 function heaterSet(c){heaterEl.value=c;heaterEl.oninput();}
 bindRange('sPow','oPow',v=>power=v,v=>v+' MJ/m³');
 bindRange('sSpeed','oSpeed',v=>steps=v,v=>'×'+v);
+const voltEl=bindRange('sVolt','oVolt',v=>Vsrc=Math.pow(10,v/10),v=>fmtV(Math.pow(10,v/10)));
+function setVolt(V){voltEl.value=Math.round(10*Math.log10(V));voltEl.oninput();}
+bindRange('sChg','oChg',v=>qAmt=Math.pow(10,v/10),v=>fmtQ(Math.pow(10,v/10)));
+const windEl=bindRange('sWind','oWind',v=>wind=v,v=>(v>0?'→ ':v<0?'← ':'')+Math.abs(v).toFixed(1));
+function setWind(w){windEl.value=w;windEl.oninput();}
+document.getElementById('sPole').onchange=e=>magDir=+e.target.value;
+const bStorm=document.getElementById('bStorm');
+function setStorm(v){storm=v;bStorm.textContent='Tempestade: '+(v?'ligada':'desligada');bStorm.classList.toggle('on',v);}
+bStorm.onclick=()=>setStorm(!storm);
 const viewsEl=document.getElementById('views');
 function setView(v){view=v;viewsEl.querySelectorAll('button').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));updateLegend();}
 viewsEl.onclick=e=>{const b=e.target.closest('button');if(b)setView(+b.dataset.v);};
@@ -638,7 +804,7 @@ addEventListener('keydown',e=>{
   if(e.key==='Shift')shiftKey=true;
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
   if(e.code==='Space'){e.preventDefault();togglePause();}
-  if(e.key==='1')setView(0);if(e.key==='2')setView(1);if(e.key==='3')setView(2);
+  if(e.key==='1')setView(0);if(e.key==='2')setView(1);if(e.key==='3')setView(2);if(e.key==='4')setView(3);if(e.key==='5')setView(4);
 });
 addEventListener('keyup',e=>{if(e.key==='Shift')shiftKey=false;});
 
@@ -648,6 +814,8 @@ const css=c=>'rgb('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+')';
 function updateLegend(){
   if(view===1){lgGrad.style.background='linear-gradient(90deg,'+PST.map(s=>css(s[1])+' '+s[0]*100+'%').join(',')+')';lgLo.textContent='0 kPa';lgHi.textContent='+'+fmtP(pRange)+' (manom.)';}
   else if(view===2){const lo=0,hi=1500;lgGrad.style.background='linear-gradient(90deg,'+TST.filter(s=>s[0]<=hi).map(s=>css(s[1])+' '+(s[0]-lo)/(hi-lo)*100+'%').join(',')+')';lgLo.textContent='−273 °C';lgHi.textContent='1227 °C';}
+  else if(view===3){lgGrad.style.background='linear-gradient(90deg,rgb(40,124,255),rgb(14,17,24) 50%,rgb(255,78,40))';lgLo.textContent='−'+fmtV(vScale);lgHi.textContent='+'+fmtV(vScale)+' · amarelo = corrente';}
+  else if(view===4){lgGrad.style.background='linear-gradient(90deg,'+MST.map(s=>css(s[1])+' '+s[0]*100+'%').join(',')+')';lgLo.textContent='|B| 10 µT';lgHi.textContent='1 T · ⊙ sai ⊗ entra';}
   else{lgGrad.style.background='linear-gradient(90deg,#000,'+GST.map(s=>css(s[1])).join(',')+')';lgLo.textContent='brilho térmico';lgHi.textContent='>2000 °C';}
 }
 // régua de profundidade
@@ -663,8 +831,9 @@ function updBrush(e){const [x,y,r]=cellOf(e);const s=(brush*2+1)/W*r.width;
   curX=x;curY=y;hoverI=(x>=0&&x<W&&y>=0&&y<H)?y*W+x:-1;}
 stage.addEventListener('contextmenu',e=>e.preventDefault());
 stage.addEventListener('pointerdown',e=>{stage.setPointerCapture(e.pointerId);shiftKey=e.shiftKey;erasing=e.button===2;drawing=true;updBrush(e);lastX=curX;lastY=curY;
-  const tl=erasing?ERASE:tool; if(tl!==HEAT&&tl!==COOL) paintAt(curX,curY,tl);});
-stage.addEventListener('pointermove',e=>{updBrush(e);shiftKey=e.shiftKey;if(drawing){const tl=erasing?ERASE:tool;if(tl!==HEAT&&tl!==COOL)paintLine(lastX,lastY,curX,curY,tl);lastX=curX;lastY=curY;}});
+  strokeId=strokeId>=65535?1:strokeId+1;
+  const tl=erasing?ERASE:tool; if(!CONT[tl]) paintAt(curX,curY,tl);});
+stage.addEventListener('pointermove',e=>{updBrush(e);shiftKey=e.shiftKey;if(drawing){const tl=erasing?ERASE:tool;if(!CONT[tl])paintLine(lastX,lastY,curX,curY,tl);lastX=curX;lastY=curY;}});
 const endDraw=()=>{drawing=false;};
 stage.addEventListener('pointerup',endDraw);stage.addEventListener('pointercancel',endDraw);
 stage.addEventListener('pointerleave',()=>{brushEl.style.display='none';hoverI=-1;});
@@ -688,6 +857,16 @@ function updReadout(){
   }else if(strA[m]>0){
     h+='<br><span class="k">tensão </span>'+(st[i]*100).toFixed(1)+'% da resistência';
   }
+  const sg=elecLive?sgE[i]:sigA[m];
+  h+='<br><span class="k">σ </span>'+fmtS(sg)+' S/m';
+  if(elecLive){
+    h+='<br><span class="k">V </span>'+fmtV(Vf[i])+' <span class="k">|E| </span>'+fmtE(eMag(i));
+    if(chg[i]>1e-13||chg[i]<-1e-13) h+='<br><span class="k">q </span>'+fmtQ(chg[i]);
+    const I=Math.hypot(IxC[i],IyC[i]); if(I>1e-6) h+='<br><span class="k">I </span>'+fmtI(I);
+    if(ionL[i]>.02) h+='<br><span class="k">ionização </span>'+(ionL[i]*100).toFixed(0)+'%';
+  }
+  if(magLive) h+='<br><span class="k">|B| </span>'+fmtB(Bfine[i]);
+  if(m===IMA) h+='<br><span class="k">M </span>'+(mxA[i]||myA[i]?si(Math.hypot(mxA[i],myA[i]),'A/m')+' '+(myA[i]<0?'↑':myA[i]>0?'↓':mxA[i]>0?'→':'←'):'desmagnetizado');
   h+='<br><span class="k">prof. </span>'+depth+' m';
   readout.innerHTML=h;
 }
@@ -699,16 +878,17 @@ function loop(now){
   const t0=performance.now();
   if(!paused){
     if(drawing&&curX>=0){const tl=erasing?ERASE:tool;paintAt(curX,curY,tl);}
-    for(let s=0;s<steps;s++){moveStep();pressureStep();heatStep();stateStep();}
-  }else if(drawing&&curX>=0&&(tool===HEAT||tool===COOL)&&!erasing){paintAt(curX,curY,tool);}
+    for(let s=0;s<steps;s++){moveStep();pressureStep();heatStep();stateStep();if(storm)weatherStep();elecStep();}
+  }else if(drawing&&curX>=0&&CONT[tool]&&!erasing){paintAt(curX,curY,tool);}
+  if((frameN&3)===0) magStep();
   const t1=performance.now();simMs+=(t1-t0-simMs)*.1;
-  render();
+  render(); drawOverlay(frameN);
   if((frameN++&7)===0){
     updReadout();
     if(view===1) lgHi.textContent='+'+fmtP(pRange)+' (manom.)';
-    statsEl.innerHTML='<span><b>'+fps.toFixed(0)+'</b> fps</span><span>sim <b>'+simMs.toFixed(1)+'</b> ms</span><span><b>'+cntP+'</b> partículas</span><span>Pmáx <b>+'+fmtP(maxG)+'</b></span><span>Tmáx <b>'+(cntP?(maxT-273.15).toFixed(0):'—')+'</b> °C</span>';
+    statsEl.innerHTML='<span><b>'+fps.toFixed(0)+'</b> fps</span><span>sim <b>'+simMs.toFixed(1)+'</b> ms</span><span><b>'+cntP+'</b> partículas</span><span>Pmáx <b>+'+fmtP(maxG)+'</b></span><span>Tmáx <b>'+(cntP?(maxT-273.15).toFixed(0):'—')+'</b> °C</span>'+(elecLive?'<span>Vmáx <b>'+fmtV(vScale)+'</b></span><span>Imáx <b>'+fmtI(iMax)+'</b></span>':'')+(nStrikes?'<span>descargas <b>'+nStrikes+'</b></span>':'')+(magLive?'<span>Bmáx <b>'+fmtB(bMax)+'</b></span>':'');
+    if(view===3||view===4) updateLegend();
   }
   requestAnimationFrame(loop);
 }
-clearAll();PRESETS.tank();updateLegend();
-requestAnimationFrame(loop);
+// inicialização em em.js (carregado depois)

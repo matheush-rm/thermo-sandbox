@@ -19,6 +19,8 @@ h1 span{color:var(--acc)}
 .stats b{color:var(--txt);font-weight:500}
 .stage{position:relative;width:min(100%, calc(100vh - 330px), 720px);min-width:280px;aspect-ratio:1;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#000;touch-action:none;cursor:none}
 .stage canvas{width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+#ov{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;image-rendering:auto}
+#flash{position:absolute;inset:0;pointer-events:none;background:#dfe4ff;opacity:0;mix-blend-mode:screen}
 #brush{position:absolute;pointer-events:none;border:1px solid rgba(255,255,255,.7);border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.6);transform:translate(-50%,-50%);display:none}
 #readout{position:absolute;left:8px;top:8px;pointer-events:none;background:rgba(8,10,14,.78);border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:6px 8px;font-family:var(--mono);font-size:11px;line-height:1.45;min-width:170px;backdrop-filter:blur(2px)}
 #readout .t{color:#fff;font-weight:600;font-family:system-ui,sans-serif;font-size:12px}
@@ -38,6 +40,7 @@ h1 span{color:var(--acc)}
 .ctrl output{font-family:var(--mono);font-size:11px;color:var(--txt);min-width:44px}
 .btn{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:5px;padding:5px 10px;font:inherit;cursor:pointer}
 .btn:hover{border-color:#3a4256}
+.btn.on{border-color:var(--acc);color:#fff;box-shadow:inset 0 -2px 0 var(--acc)}
 select.btn{padding:5px 6px}
 .palette{width:100%;display:flex;flex-direction:column;gap:8px}
 .grp{display:flex;gap:8px;align-items:flex-start}
@@ -65,6 +68,8 @@ details code{font-family:var(--mono);color:var(--txt);font-size:11px}
 
   <div class="stage" id="stage">
     <canvas id="cv" width="200" height="200"></canvas>
+    <canvas id="ov"></canvas>
+    <div id="flash"></div>
     <div id="brush"></div>
     <div class="ruler" id="ruler"></div>
     <div id="readout"></div>
@@ -75,6 +80,8 @@ details code{font-family:var(--mono);color:var(--txt);font-size:11px}
       <button data-v="0">Material</button>
       <button data-v="1" class="on">Pressão</button>
       <button data-v="2">Temperatura</button>
+      <button data-v="3">Elétrico</button>
+      <button data-v="4">Magnético</button>
     </div>
     <div class="legend"><span id="lgLo">0</span><div class="grad" id="lgGrad"></div><span id="lgHi">—</span></div>
     <div class="ctrls">
@@ -83,6 +90,11 @@ details code{font-family:var(--mono);color:var(--txt);font-size:11px}
       <label class="ctrl">Resistência <input type="range" id="sHeater" min="100" max="1400" step="10" value="500"><output id="oHeater"></output></label>
       <label class="ctrl">Potência <input type="range" id="sPow" min="0.5" max="20" step="0.5" value="4"><output id="oPow"></output></label>
       <label class="ctrl">Passos/quadro <input type="range" id="sSpeed" min="1" max="4" value="2"><output id="oSpeed"></output></label>
+      <label class="ctrl">Tensão <input type="range" id="sVolt" min="0" max="80" step="1" value="20"><output id="oVolt"></output></label>
+      <label class="ctrl">Carga <input type="range" id="sChg" min="-90" max="-40" step="1" value="-70"><output id="oChg"></output></label>
+      <label class="ctrl">Polo N <select class="btn" id="sPole"><option value="0">↑</option><option value="1">→</option><option value="2">↓</option><option value="3">←</option></select></label>
+      <label class="ctrl">Vento <input type="range" id="sWind" min="-10" max="10" step="0.5" value="0"><output id="oWind"></output></label>
+      <button class="btn" id="bStorm">Tempestade: desligada</button>
       <button class="btn" id="bPause">Pausar</button>
       <button class="btn" id="bLid">Tampa: aberta</button>
       <select class="btn" id="sPreset">
@@ -91,6 +103,10 @@ details code{font-family:var(--mono);color:var(--txt);font-size:11px}
         <option value="cooker">Panela de pressão</option>
         <option value="fire">Fogo, lava e gelo</option>
         <option value="bell">Sino de mergulho</option>
+        <option value="storm">Tempestade com raios</option>
+        <option value="tesla">Descarga de alta tensão</option>
+        <option value="circuit">Circuito elétrico</option>
+        <option value="magnets">Ímãs e limalha</option>
       </select>
       <button class="btn" id="bClear">Limpar</button>
     </div>
@@ -108,12 +124,18 @@ details code{font-family:var(--mono);color:var(--txt);font-size:11px}
       <li><b>Mudanças de fase com calor latente</b>; ponto de ebulição por Clausius‑Clapeyron (água ferve a ~120 °C a 2 atm, a ~17 °C sob vácuo); fusão do gelo por Clapeyron (cai com pressão).</li>
       <li><b>Empuxo:</b> trocas por diferença de densidade, freadas pela viscosidade (mel e lava têm viscosidade dependente da temperatura).</li>
       <li><b>Resistência mecânica:</b> sólidos fixos quebram quando a diferença de pressão entre lados excede a resistência (lata 110 kPa, vidro 2 MPa, concreto 30 MPa, basalto 150 MPa, aço 250 MPa). Isopor colapsa e madeira encharca sob pressão manométrica. Vidro também trinca por choque térmico.</li>
+      <li><b>Eletricidade:</b> solução quase-estática implícita de Gauss + continuidade <code>Σ h(ε+σ·dt)ΔV = q</code>, com σ e ε reais de cada material (cobre 6·10⁷ S/m, água salgada 5, água doce 5·10⁻³, madeira 10⁻¹², ar 3·10⁻¹⁵). Condutores ficam equipotenciais e a carga vai para a superfície; isolantes retêm carga. Corrente <code>I = hσΔV</code> gera calor de Joule <code>I·ΔV</code>; metais aumentam a resistência com a temperatura. O piso é a terra (0 V).</li>
+      <li><b>Raios:</b> onde |E| supera a rigidez dielétrica (ar 3 MV/m ∝ densidade — ar quente/rarefeito rompe mais fácil; hélio 0,45; nuvem ~1 MV/m pelo reforço dos hidrometeoros) a célula ioniza e vira plasma condutor. O canal concentra o campo na ponta e avança por ela (líder escalonado), ramificando de forma estocástica — por isso procura objetos altos, metálicos e aterrados. Iniciação exige o campo de ruptura completo; a ponta do líder avança com ~1 MV/m (streamers), sorteando poucas células por passo com peso ∝ (E/E<sub>rup</sub>)³ — canal fino e ramificado. Ao tocar a terra (ou ligar potenciais distintos) o crescimento para e a descarga dissipa a energia por Joule (milhares de K): incendeia madeira, ferve água, funde areia (fulgurito).</li>
+      <li><b>Tempestade:</b> perfil térmico −40 °C→+3 °C na nuvem; graupel em queda colide com cristais de gelo e troca carga (graupel fica − abaixo de −15 °C e + acima — mecanismo não-indutivo); a corrente ascendente leva os cristais (+) ao topo → estrutura tripolar, campo cresce até romper. Chuva e granizo levam carga ao solo.</li>
+      <li><b>Magnetismo:</b> Biot–Savart para correntes no plano (campo ⊙/⊗) e campo de dipolo dos ímãs (NdFeB, M = 950 kA/m) e do ferro magnetizado por indução (χ efetivo com desmagnetização, saturação Ms, perde ferromagnetismo acima de Curie). Limalha e ferrofluido sofrem <code>f = |M|·∇|B|</code>. Força elétrica <code>qE</code> age sobre partículas carregadas.</li>
+      <li>⚠️ Simplificações (assumidas): eletromagnetismo trata a câmara como placa de 10 cm de espessura; sem indução de Faraday nem força de Lorentz em correntes; nuvem e lapse rate comprimidos para caber em 20 m; carga por colisão escalada e a carga do cristal é levada 1–2,5 m acima (corrente ascendente comprimida no tempo); calor do canal de raio multiplicado por 3·10⁵ (a placa fina subestima a energia de uma coluna real, ~10⁵ J/m); σ do plasma limitada a ~10⁴·ε₀/Δt (canal continua equipotencial; com fonte ideal o arco fica limitado a ~MΩ); carga por célula limitada a 2 µC (corona); recombinação τ≈50 ms.</li>
       <li>⚠️ Simplificações (assumidas): condução térmica com escala de tempo comprimida; volume 1:1 nas mudanças de fase (cada célula de vapor nova carrega 5% da massa do líquido); sólidos soltos só se movem na vertical.</li>
     </ul>
-    <p>Esquerdo: desenhar · Direito: apagar · Shift: sobrescrever · Espaço: pausar · 1/2/3: visualização</p>
+    <p>Esquerdo: desenhar · Direito: apagar · Shift: sobrescrever · Espaço: pausar · 1–5: visualização</p>
   </details>
 </div>
 
 <script src="sim.js"></script>
+<script src="em.js"></script>
 </body>
 </html>
