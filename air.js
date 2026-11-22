@@ -11,7 +11,7 @@ const AP_MAX=20*PATM,AP_MIN=-.9*PATM,THERM=.15,VAP_SRC=.25*PATM/(AC*AC),BUOY=.00
 const GX_AIR=.4/1.4,AF=new Uint16Array(N); for(let i=0;i<N;i++) AF[i]=(((i/W)|0)>>1)*AW+((i%W)>>1);
 const ap=new Float32Array(AN),avx=new Float32Array(AN),avy=new Float32Array(AN),tvx=new Float32Array(AN),tvy=new Float32Array(AN),
   aInj=new Float32Array(AN),aQ=new Float32Array(AN),aRho=new Float32Array(AN),aKv=new Float32Array(AN),aCmp=new Float32Array(AN),
-  ucx=new Float32Array(AN),ucy=new Float32Array(AN),agx=new Float32Array(AN),agy=new Float32Array(AN),apS=new Float32Array(AN);
+  ucx=new Float32Array(AN),ucy=new Float32Array(AN),agx=new Float32Array(AN),agy=new Float32Array(AN),apS=new Float32Array(AN),aBg=new Float32Array(AN);
 const aBlk=new Uint8Array(AN),aGas=new Uint8Array(AN),aDen=new Uint8Array(AN),aAct=new Uint8Array(AN);
 let airOn=true,blastOn=true,apMax=0,avMax=0;
 // arrasto por material: gás segue o ar; pós/líquidos/blocos com acoplamento ~1/√ρ e limiar
@@ -22,6 +22,13 @@ for(let m=0;m<NM;m++){const k=kind[m],r=Math.max(1,rho0[m]);pgA[m]=k===GAS||k===
   else if(k===LIQ){cplA[m]=Math.min(1,40/Math.sqrt(r));thrA[m]=.08;}
   else if(k===MOV){cplA[m]=Math.min(1,20/Math.sqrt(r));thrA[m]=.15;}}
 
+// níveis de potencial (φ = Σ −GM/r − g·y): células grossas ordenadas por φ, agrupadas de ABIN em ABIN
+const ABIN=50,NLEV=Math.ceil(AN/ABIN),aLev=new Uint16Array(AN),lvS=new Float64Array(NLEV),lvN=new Uint16Array(NLEV);let lvKey='';
+function airLevels(){const key=gVer+'|'+gm;if(key===lvKey)return;lvKey=key;
+  const ph=new Float64Array(AN),ord=Array.from({length:AN},(_,c)=>c);
+  for(let c=0;c<AN;c++){const x=(c%AW)*AC+1,y=((c/AW)|0)*AC+1;ph[c]=gPhi[y*W+x]-gm*G0*y*DX;}
+  ord.sort((p,q)=>ph[p]-ph[q]); // estável: empates (g uniforme) ficam em ordem de linha
+  for(let r=0;r<AN;r++)aLev[ord[r]]=(r/ABIN)|0;}
 function airReset(){ap.fill(0);avx.fill(0);avy.fill(0);aInj.fill(0);apS.fill(0);apMax=0;avMax=0;}
 // sobrepressão vista por uma célula fina; perto de parede usa a célula grossa do lado do gás (d = direção para fora)
 function apAt(j,d){let c=AF[j];if(aBlk[c]){const n=j+d;if(n>=0&&n<N&&!aBlk[AF[n]])c=AF[n];}return ap[c];}
@@ -34,7 +41,7 @@ function airStep(){
   if(!airOn) return;
   const AV_MAX=Math.max(.6,1.05*windF/343*C_AIR); // teto da grade: ≥ explosões (.6) e ≥ força máx. do vento
   // 1) agrega células finas: sólidos bloqueiam; fonte térmica Σ ΔT/T dos gases (T−tOld: calor desde o último passo, sem transporte)
-  aBlk.fill(0);aGas.fill(0);aDen.fill(0);aRho.fill(0);aQ.fill(0);
+  aBlk.fill(0);aGas.fill(0);aDen.fill(0);aRho.fill(0);aQ.fill(0);aBg.fill(0);
   for(let i=0;i<N;i++){
     const m=mat[i],k=kind[m],c=AF[i];
     if(k===FIX){aBlk[c]=1;continue;}
@@ -49,17 +56,22 @@ function airStep(){
     let p=ap[c]+aInj[c]+qs*aQ[c]; aInj[c]=0;
     ap[c]=p>AP_MAX?AP_MAX:p<AP_MIN?AP_MIN:p;
   }
-  // 2) momento: gradiente de pressão + empuxo; arrasto de líquidos/pós na célula
   const gb=BUOY*gm;
+  // referência do empuxo: densidade média do gás no MESMO nível de potencial (linha horizontal em g uniforme, anel em volta
+  // de uma massa). Ar estratificado em equilíbrio hidrostático (comprimido perto da massa) tem b ≈ 0; a hidrostática já está em P.
+  if(gb>0||gAny){airLevels();lvS.fill(0);lvN.fill(0);
+    for(let c=0;c<AN;c++)if(!aBlk[c]&&aGas[c]){const l=aLev[c];lvS[l]+=aRho[c];lvN[l]++;}
+    for(let c=0;c<AN;c++){const l=aLev[c];aBg[c]=lvN[l]?lvS[l]/lvN[l]:RHO_AIR;}}
+  // 2) momento: gradiente de pressão + empuxo; arrasto de líquidos/pós na célula
   for(let cy=0;cy<AH;cy++){const row=cy*AW;
     for(let cx=0;cx<AW;cx++){const c=row+cx;
       if(aBlk[c]){avx[c]=0;avy[c]=0;continue;}
       const dr=1-.05*aDen[c];
       if(cx<AW-1&&!aBlk[c+1]){let u=avx[c]*dr*.998-(ap[c+1]-ap[c])*.5*(aKv[c]+aKv[c+1]);
-        if(gAny&&aGas[c]&&aGas[c+1]){const rf=.5*(aRho[c]+aRho[c+1]);let b=(rf-RHO_AIR)/rf;b=b>1?1:b<-4?-4:b;u+=BUOY*.5*(gCx[c]+gCx[c+1])*b;} // empuxo na direção de g local (grav.js)
+        if(gAny&&aGas[c]&&aGas[c+1]){const rf=.5*(aRho[c]+aRho[c+1]);let b=(rf-.5*(aBg[c]+aBg[c+1]))/rf;b=b>1?1:b<-4?-4:b;u+=BUOY*.5*(gCx[c]+gCx[c+1])*b;} // empuxo na direção de g local (grav.js)
         avx[c]=u>AV_MAX?AV_MAX:u<-AV_MAX?-AV_MAX:u;} else avx[c]=0;
       if(cy<AH-1&&!aBlk[c+AW]){const n=c+AW;let v=avy[c]*dr*.998-(ap[n]-ap[c])*.5*(aKv[c]+aKv[n]);
-        if((gb>0||gAny)&&aGas[c]&&aGas[n]){const rf=.5*(aRho[c]+aRho[n]);let b=(rf-RHO_AIR)/rf;b=b>1?1:b<-4?-4:b;v+=(gb+BUOY*.5*(gCy[c]+gCy[n]))*b;}
+        if((gb>0||gAny)&&aGas[c]&&aGas[n]){const rf=.5*(aRho[c]+aRho[n]);let b=(rf-.5*(aBg[c]+aBg[n]))/rf;b=b>1?1:b<-4?-4:b;v+=(gb+BUOY*.5*(gCy[c]+gCy[n]))*b;}
         avy[c]=v>AV_MAX?AV_MAX:v<-AV_MAX?-AV_MAX:v;} else avy[c]=0;
     }}
   // 3) advecção semi-lagrangiana da velocidade (termo (u·∇)u: vórtices e jatos se transportam)

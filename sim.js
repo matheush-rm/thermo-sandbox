@@ -279,7 +279,7 @@ function pressureStep(){
   const hg=0.5*G0*gm*DX;
   for(let i=0;i<N;i++){
     if(kind[mat[i]]===FIX){vis[i]=3;Pn[i]=0;rhoA[i]=0;}
-    else{vis[i]=0;rhoA[i]=densOf(i);}
+    else{vis[i]=0;rhoA[i]=pvx[i]||pvy[i]?0:densOf(i);} // matéria em voo (queda livre) não pesa na coluna
   }
   let qh=0,qt=0;
   if(!lid) for(let x=1;x<W-1;x++){ if(vis[x]===0){vis[x]=1;Pn[x]=PATM;q[qt++]=x;} }

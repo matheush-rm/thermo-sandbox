@@ -12,17 +12,19 @@
 // perdendo ~5% da massa em ondas gravitacionais.
 // A autogravidade da matéria da câmara é desprezível (1 L de aço = 7,85 kg → 5·10⁻⁸ m/s² a 10 cm) e não é calculada.
 // ⚠️ Assumido: hidrostática limitada a 100 g (gás ideal com escala de altura RT/Mg ≪ 1 célula divergiria);
-// empuxo do ar limitado a 30 g; aquecimento do disco limitado (+≤400 K/passo, ≤ 5500 K) — a energia real
+// empuxo do ar dinâmico limitado para a escala de altura do ar da grade H = C_AIR²/(BUOY·g) ficar ≥ 10 células grossas (= 3 g);
+// com o som reduzido, 30 g dava H = 1 célula: modo acústico-gravitacional na resolução da grade → ±6 atm, vento supersônico. Medido contra a
+// densidade média no mesmo nível de potencial (a parte hidrostática já está em P); aquecimento do disco limitado (+≤400 K/passo, ≤ 5500 K) — a energia real
 // (~6% de mc²) vaporizaria tudo instantaneamente; maré avaliada no comprimento de uma célula (L = 10 cm);
 // sombra/lente desenhadas como vista de um observador distante (o plano da câmara é uma fatia 2D).
-const GN=6.674e-11,CLUZ=2.998e8,HBAR=1.0546e-34,KB=1.380649e-23,GSOFT2=(.5*DX)*(.5*DX),GH_MAX=100*G0,GAIR_MAX=30,
+const GN=6.674e-11,CLUZ=2.998e8,HBAR=1.0546e-34,KB=1.380649e-23,GSOFT2=(.5*DX)*(.5*DX),GH_MAX=100*G0,GAIR_MAX=C_AIR*C_AIR/(BUOY*10),
   GM0=1e9,GMMAX=2e27,GRATE=1.07,GMAXS=8,BH_RS=.5,GW_LOSS=.05,BH_SINK=.08*PATM;
 const gS=[]; // fontes {x,y (células, contínuo), M (kg), bh, abs (kg absorvidos)}
 const gTx=new Float32Array(N),gTy=new Float32Array(N),gTa=new Float32Array(N),gFr=new Float32Array(N),gO=new Uint8Array(N),gLoc=new Uint8Array(N),
   gfx=new Float32Array(N),gfy=new Float32Array(N),gHx=new Float32Array(N),gHy=new Float32Array(N),gTid=new Float32Array(N),gPhi=new Float32Array(N),
   gCx=new Float32Array(AN),gCy=new Float32Array(AN);
 const GDIR=[1,1+W,W,W-1,-1,-1-W,-W,1-W]; // octantes (y para baixo): 0 →, 2 ↓, 4 ←, 6 ↑
-let gAny=false,gBH=false,gDirty=false,gLastGm=-1,gTidMax=0;
+let gAny=false,gBH=false,gDirty=false,gLastGm=-1,gTidMax=0,gVer=0;
 const gWaves=[]; // ondas gravitacionais (fusões) para a sobreposição
 let TID_MIN=1e30; // menor maré (s⁻²) que rasga algum sólido: σ/(ρ·L²)
 for(let m=0;m<NM;m++)if(kind[m]===FIX&&strA[m]>0&&crushA[m]&&rho0[m]>0)TID_MIN=Math.min(TID_MIN,strA[m]/(rho0[m]*DX*DX));
@@ -33,7 +35,7 @@ function gravGet(){return gS.map(s=>({x:s.x,y:s.y,M:s.M,abs:s.abs||0}));}
 function gravSet(a){gS.length=0;if(Array.isArray(a))for(const s of a)if(s&&isFinite(s.M)&&s.M>0)gS.push({x:+s.x,y:+s.y,M:+s.M,abs:+s.abs||0,bh:false});gDirty=true;gravField();}
 
 function gravField(){
-  gDirty=false;gLastGm=gm;gAny=gS.length>0;gBH=false;
+  gDirty=false;gLastGm=gm;gVer++;gAny=gS.length>0;gBH=false;
   for(const s of gS){s.bh=rsOf(s.M)/DX>=BH_RS;if(s.bh)gBH=true;}
   if(!gAny){gLoc.fill(0);gfx.fill(0);gfy.fill(0);gHx.fill(0);gHy.fill(0);gTid.fill(0);gPhi.fill(0);gCx.fill(0);gCy.fill(0);gTidMax=0;return;}
   const gu=gm*G0,thr=.02*G0*Math.max(gm,.1),ns=gS.length,SX=new Float64Array(ns),SY=new Float64Array(ns),SM=new Float64Array(ns);
