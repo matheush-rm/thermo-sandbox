@@ -53,24 +53,26 @@ function elecCoef(dt){
 const LTH=[1e-8],NL=LTH.length; // condutor: σ·dt ≫ ε
 const labA=[],ordA=[],cS=[],cE=[],cAn=[],nC=new Int32Array(NL);
 for(let L=0;L<NL;L++){labA.push(new Int32Array(N).fill(-1));ordA.push(new Int32Array(N));cS.push(new Int32Array(N));cE.push(new Int32Array(N));cAn.push(new Uint8Array(N));}
-let lGround=false,flashN=0;const cHi=new Uint8Array(N);
+let lGround=false,flashN=0;const cHi=new Uint8Array(N),cFl=new Uint8Array(N),flt=new Uint8Array(N);
+// cFl/flt: corpo condutor isolado sem plasma → equipotencial rígido (V pela carga total). Sem isso σ·dt/ε ~10¹⁷
+// excede a precisão do float64: o resíduo vira ruído de arredondamento, a deflação amplifica e o potencial diverge
 function label(){
-  lGround=false;
+  lGround=false;flt.fill(0);
   for(let L=0;L<NL;L++){
     const lab=labA[L],ord=ordA[L],S=cS[L],E=cE[L],An=cAn[L],th=LTH[L];
     lab.fill(-1);let nc=0,pos=0;
     for(let i=W;i<N-W;i++){
       if(!dom[i]||lab[i]>=0||sgE[i]<th) continue;
-      const st=pos;ord[pos++]=i;lab[i]=nc;let an=fixV[i],hd=st,hi=0,tg=0,tp=0,tn=0; // tg/tp/tn: toca terra / polo + / polo −
+      const st=pos;ord[pos++]=i;lab[i]=nc;let an=fixV[i],hd=st,hi=0,pl=0,tg=0,tp=0,tn=0; // tg/tp/tn: toca terra / polo + / polo −
       while(hd<pos){const a=ord[hd++];if(a>=(H-2)*W)an=1; // toca o piso = aterrado
-        if(ion[a]>.6)hi=1;
+        if(ion[a]>.6)hi=1;if(ionL[a]>1e-3)pl=1;
         if(L===0){if(a>=(H-2)*W)tg=1;if(fixV[a]){const r=srcA[mat[a]];if(r===3)tg=1;else if(r===1)tp=1;else tn=1;}}
         let j=a-1;if(dom[j]&&lab[j]<0&&sgE[j]>=th){lab[j]=nc;ord[pos++]=j;an|=fixV[j];}
         j=a+1;if(dom[j]&&lab[j]<0&&sgE[j]>=th){lab[j]=nc;ord[pos++]=j;an|=fixV[j];}
         j=a-W;if(dom[j]&&lab[j]<0&&sgE[j]>=th){lab[j]=nc;ord[pos++]=j;an|=fixV[j];}
         j=a+W;if(dom[j]&&lab[j]<0&&sgE[j]>=th){lab[j]=nc;ord[pos++]=j;an|=fixV[j];}
       }
-      S[nc]=st;E[nc]=pos;An[nc]=an;if(L===0)cHi[nc]=hi;if(hi&&((tg&&!tp&&!tn)||tg+tp+tn>=2))lGround=true;nc++; // canal completo: nuvem→terra ou entre potenciais distintos
+      S[nc]=st;E[nc]=pos;An[nc]=an;if(L===0){cHi[nc]=hi;cFl[nc]=!an&&!pl&&pos-st>1?1:0;if(cFl[nc])for(let k=st;k<pos;k++)flt[ord[k]]=1;}if(hi&&((tg&&!tp&&!tn)||tg+tp+tn>=2))lGround=true;nc++; // canal completo: nuvem→terra ou entre potenciais distintos
     }
     nC[L]=nc;
   }
@@ -81,6 +83,14 @@ function aggCorrect(){
     for(let c=0;c<nc;c++){
       const s=S[c],e=E[c];if(An[c]||e-s<2) continue;
       let num=0,den=0;
+      if(L===0&&cFl[c]){ // equipotencial rígido: Σ_ext a·(V − V_viz) = Q → V = (Q + Σ a·V_viz)/Σ a
+        for(let k=s;k<e;k++){const i=ord[k];num+=chg[i];
+          let a=aR[i-1];if(a>0&&lab[i-1]!==c){num+=a*Vf[i-1];den+=a;}
+          a=aR[i];if(a>0&&lab[i+1]!==c){num+=a*Vf[i+1];den+=a;}
+          a=aD[i-W];if(a>0&&lab[i-W]!==c){num+=a*Vf[i-W];den+=a;}
+          a=aD[i];if(a>0&&lab[i+W]!==c){num+=a*(i>=(H-2)*W?0:Vf[i+W]);den+=a;}}
+        if(den>0){const v=num/den;for(let k=s;k<e;k++)Vf[ord[k]]=v;}
+        continue;}
       for(let k=s;k<e;k++){const i=ord[k],v=Vf[i];num+=chg[i];
         let a=aR[i-1];if(a>0&&lab[i-1]!==c){num-=a*(v-Vf[i-1]);den+=a;}
         a=aR[i];if(a>0&&lab[i+1]!==c){num-=a*(v-Vf[i+1]);den+=a;}
@@ -97,7 +107,7 @@ function sor(n){
   for(let it=0;it<n;it++){
     for(let c=0;c<2;c++){
       for(let y=1;y<H-1;y++){const row=y*W;
-        for(let x=1+((y+c)&1);x<W-1;x+=2){const i=row+x;if(fixV[i])continue;
+        for(let x=1+((y+c)&1);x<W-1;x+=2){const i=row+x;if(fixV[i]||flt[i])continue;
           const v=(chg[i]+aR[i-1]*Vf[i-1]+aR[i]*Vf[i+1]+aD[i-W]*Vf[i-W]+aD[i]*Vf[i+W])/dg[i];
           Vf[i]+=w*(v-Vf[i]);}}}
     if(it===(n>>1)||it===n-1) aggCorrect();
@@ -114,7 +124,7 @@ function dpcg(maxIt,tol,onlyIon){ // onlyIon: só corpos com plasma (sub-passos 
   if(cEc.length<nc){cEc=new Float64Array(nc*2);cMu=new Float64Array(nc*2);}
   if(cAct.length<nc)cAct=new Int32Array(nc*2);
   let n=0,na=0; // cAct: corpos ativos (loops de deflação só sobre eles, não sobre todas as gotas da nuvem)
-  for(let c=0;c<nc;c++){if(onlyIon&&!cHi[c])continue;const n0=n;for(let k=S[c];k<E[c];k++){const i=ord[k];if(!fixV[i]){inS[i]=1;Sx[n++]=i;}}if(n>n0)cAct[na++]=c;}
+  for(let c=0;c<nc;c++){if((onlyIon&&!cHi[c])||cFl[c])continue;const n0=n;for(let k=S[c];k<E[c];k++){const i=ord[k];if(!fixV[i]){inS[i]=1;Sx[n++]=i;}}if(n>n0)cAct[na++]=c;}
   if(!n) return 0;
   if(maxIt<0)maxIt=Math.min(1500,Math.max(-maxIt,(1.5e5/n)|0)); // orçamento de trabalho: conjuntos pequenos convergem por completo
   for(let a=0;a<na;a++){const c=cAct[a];cEc[c]=0;cMu[c]=0;}
