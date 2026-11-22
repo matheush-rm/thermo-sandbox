@@ -60,7 +60,15 @@ main{display:flex;flex-direction:column;min-width:0;min-height:0;gap:10px}
 .it .nm{font-size:11px;line-height:1.15;text-align:center;overflow:hidden;text-overflow:ellipsis;max-width:100%;white-space:nowrap}
 .it .sb{font-family:var(--mono);font-size:9px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .empty{grid-column:1/-1;color:var(--mut);text-align:center;padding:20px 0;font-size:12px}
-.sel{border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:10px;align-items:flex-start}
+.sel{border-top:1px solid var(--line);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.sel .sr{display:flex;gap:10px;align-items:flex-start}
+.sel kbd{font-family:var(--mono);font-size:9px;font-weight:600;padding:1px 4px;border-radius:4px;vertical-align:1px}
+.sel kbd.mb0{background:var(--acc-soft);color:var(--acc)}
+.sel kbd.mb1{background:rgba(255,107,74,.14);color:var(--acc2)}
+.it.on2{border-color:var(--acc2);box-shadow:0 0 0 1px var(--acc2) inset}
+.it.on.on2{box-shadow:0 0 0 1px var(--acc) inset,0 0 0 3px var(--acc2) inset}
+.rail .tl.on2{border-color:rgba(255,107,74,.6);background:rgba(255,107,74,.1)}
+.rail .tl.on2::after{content:"";position:absolute;right:-7px;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--acc2)}
 .sel .ic{flex:none;width:36px;height:36px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center}
 .sel .ic svg{width:26px;height:26px}
 .sel .t{font-weight:650;font-size:12.5px}
@@ -404,8 +412,8 @@ dialog code{font-family:var(--mono);color:var(--txt);font-size:11.5px;background
     <details class="panel card sec">
       <summary><h2>Atalhos</h2></summary>
       <div class="keys">
-        <kbd>Esq.</kbd><span>desenhar</span>
-        <kbd>Dir.</kbd><span>apagar</span>
+        <kbd>Esq.</kbd><span>item primário (clique esq. no item)</span>
+        <kbd>Dir.</kbd><span>item secundário (clique dir. no item; padrão borracha)</span>
         <kbd>Shift</kbd><span>sobrescrever (ao clicar)</span>
         <kbd>Shift+arrastar</kbd><span>linha reta · quadrado · círculo</span>
         <kbd>Roda</kbd><span>zoom no cursor</span>

@@ -531,7 +531,7 @@ function stateStep(){
 }
 
 // ================= ferramentas =================
-let brush=4,tool=AGUA,drawing=false,erasing=false,shiftKey=false,curX=-1,curY=-1,lastX=-1,lastY=-1,hoverI=-1;
+let brush=4,tool=AGUA,tool2=ERASE,drawing=false,erasing=false,shiftKey=false,curX=-1,curY=-1,lastX=-1,lastY=-1,hoverI=-1;
 let brushSq=false; // pincel quadrado
 function paintAt(cx,cy,tl){
   if(tl===GRAVT){gravPaint(cx,cy,shiftKey);return;}
@@ -907,7 +907,7 @@ const DESC={
  [VAPOR]:'gás M 18 g/mol · condensa abaixo de Teb(P)',
  [HELIO]:'gás M 4 g/mol · sobe rápido',
  [FOGO]:'combustão · gás quente sobe',
- [ERASE]:'remove (botão direito)',[HEAT]:'injeta calor: ΔT = Q/(ρc)',[COOL]:'retira calor',
+ [ERASE]:'remove',[HEAT]:'injeta calor: ΔT = Q/(ρc)',[COOL]:'retira calor',
  [COBRE]:'σ 5,96·10⁷ S/m · ótimo condutor · funde 1085 °C',
  [NICROMO]:'σ 9,1·10⁵ S/m · resistivo → aquece por efeito Joule',
  [IMA]:'NdFeB · Br ≈ 1,2 T · perde magnetização acima de 310 °C (Curie) · direção N no seletor "Polo N"',
@@ -990,16 +990,20 @@ const nameOf=id=>NAMES[id]||D[id].n;
 const subOf=id=>SUB[id]!==undefined?SUB[id]:(D[id].kind===FIX?'σ '+fmtP(D[id].str):'ρ '+D[id].rho);
 const norm=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 let matTab=0,lastMat=tool;
-function selectTool(id){
-  tool=id; if(id<100) lastMat=id;
-  document.querySelectorAll('[data-id]').forEach(e=>e.classList.toggle('on',+e.dataset.id===id));
-  selInfo.innerHTML='<div class="ic">'+IC[id]+'</div><div><div class="t">'+nameOf(id)+' <span style="color:var(--mut);font-weight:400;font-family:var(--mono);font-size:10px">'+subOf(id)+'</span></div><div class="d">'+(DESC[id]||'')+'</div></div>';
+// dupla seleção: tool = botão esquerdo, tool2 = botão direito
+const selRow=(id,k)=>'<div class="sr"><div class="ic">'+IC[id]+'</div><div><div class="t"><kbd class="mb'+k+'">'+(k?'Dir.':'Esq.')+'</kbd> '+nameOf(id)+' <span style="color:var(--mut);font-weight:400;font-family:var(--mono);font-size:10px">'+subOf(id)+'</span></div><div class="d">'+(DESC[id]||'')+'</div></div></div>';
+function markSel(){
+  document.querySelectorAll('[data-id]').forEach(e=>{const v=+e.dataset.id;e.classList.toggle('on',v===tool);e.classList.toggle('on2',v===tool2);});
+  selInfo.innerHTML=selRow(tool,0)+selRow(tool2,1);
   const cur=document.getElementById('railCur'); if(cur) cur.innerHTML=IC[lastMat];
 }
+function selectTool(id){tool=id; if(id<100) lastMat=id; markSel();}
+function selectTool2(id){tool2=id; markSel();}
+const bindSel=(b,id)=>{b.onclick=()=>selectTool(id);b.oncontextmenu=e=>{e.preventDefault();selectTool2(id);};};
 function tile(id){
-  const b=document.createElement('button');b.className='it'+(id===tool?' on':'');b.dataset.id=id;b.title=DESC[id]||'';
+  const b=document.createElement('button');b.className='it'+(id===tool?' on':'');b.dataset.id=id;b.title=(DESC[id]||'')+' — esq./dir. seleciona p/ cada botão';
   b.innerHTML=IC[id]+'<span class="nm">'+nameOf(id)+'</span><span class="sb">'+subOf(id)+'</span>';
-  b.onclick=()=>selectTool(id);return b;
+  bindSel(b,id);return b;
 }
 function renderPalette(){
   const q=norm(searchEl.value.trim());palEl.innerHTML='';let n=0;
@@ -1021,9 +1025,9 @@ searchEl.onkeydown=e=>{if(e.key==='Escape'){searchEl.value='';renderPalette();se
   if(e.key==='Enter'){const f=palEl.querySelector('.it');if(f){f.click();searchEl.blur();}}};
 // trilho: material atual + ferramentas
 {const cur=document.createElement('button');cur.className='tl';cur.id='railCur';cur.dataset.tip='Material atual|voltar a desenhar com ele';
-  cur.onclick=()=>selectTool(lastMat);railEl.appendChild(cur);railEl.appendChild(document.createElement('hr'));
+  cur.onclick=()=>selectTool(lastMat);cur.oncontextmenu=e=>{e.preventDefault();selectTool2(lastMat);};railEl.appendChild(cur);railEl.appendChild(document.createElement('hr'));
   for(const id of TOOL_LIST){const b=document.createElement('button');b.className='tl';b.dataset.id=id;b.innerHTML=IC[id];
-    b.dataset.tip=nameOf(id)+'|'+(DESC[id]||'');b.onclick=()=>selectTool(id);railEl.appendChild(b);}
+    b.dataset.tip=nameOf(id)+'|'+(DESC[id]||'');bindSel(b,id);railEl.appendChild(b);}
   railEl.appendChild(document.createElement('hr'));
   for(const [md,nm,ds,ic] of MODES){const b=document.createElement('button');b.className='tl md'+(md===drawMode?' on':'');b.dataset.md=md;
     b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="#c9d1e0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+ic+'</svg>';
@@ -1186,10 +1190,10 @@ stage.addEventListener('pointerdown',e=>{stage.setPointerCapture(e.pointerId);up
   if(e.pointerType==='touch'&&touchDown(e))return;
   if(e.button===1||e.altKey){e.preventDefault();panning={x:e.clientX,y:e.clientY,zx:ZX,zy:ZY};zT=null;stage.classList.add('pan','drag');brushEl.style.display='none';return;}
   if(e.ctrlKey||e.metaKey){pinI=hoverI;return;}
-  if(tool===WIND){windDX=0;windDY=0;}
-  shiftKey=e.shiftKey;erasing=e.button===2;lastX=curX;lastY=curY;lastPaintI=hoverI;
+  shiftKey=e.shiftKey;erasing=e.button===2;
+  if((erasing?tool2:tool)===WIND){windDX=0;windDY=0;}lastX=curX;lastY=curY;lastPaintI=hoverI;
   strokeId=strokeId>=65535?1:strokeId+1;pushUndo();
-  const tl=erasing?ERASE:tool;
+  const tl=erasing?tool2:tool;
   if(drawMode==='fill'){bucket(curX,curY,tl);return;}
   drawing=true;
   if(!isFree()){shapePrev={md:drawMode,x0:curX,y0:curY,x1:curX,y1:curY,cx:curX,cy:curY,ow:shiftKey};return;}
@@ -1200,13 +1204,13 @@ stage.addEventListener('pointermove',e=>{
   stage.classList.toggle('pan',e.altKey);
   updBrush(e);shiftKey=e.shiftKey;
   if(shapePrev){shapePrev.cx=curX;shapePrev.cy=curY;constrainShape();return;}
-  if(drawing){const tl=erasing?ERASE:tool;if(!CONT[tl])paintLine(lastX,lastY,curX,curY,tl);lastX=curX;lastY=curY;lastPaintI=hoverI;}});
+  if(drawing){const tl=erasing?tool2:tool;if(!CONT[tl])paintLine(lastX,lastY,curX,curY,tl);lastX=curX;lastY=curY;lastPaintI=hoverI;}});
 // Shift durante arrasto: linha só horiz./vert.; retângulo/elipse quadrado/círculo. Sobrescrever em formas = Shift no clique inicial
 function constrainShape(){const sp=shapePrev;if(!sp)return;let dx=sp.cx-sp.x0,dy=sp.cy-sp.y0;
   if(shiftKey){if(sp.md==='line'){if(Math.abs(dx)>=Math.abs(dy))dy=0;else dx=0;}
     else{const d=Math.max(Math.abs(dx),Math.abs(dy));dx=(dx<0?-1:1)*d;dy=(dy<0?-1:1)*d;}}
   sp.x1=sp.x0+dx;sp.y1=sp.y0+dy;}
-const endDraw=()=>{if(shapePrev){const sp=shapePrev;shapePrev=null;const sk=shiftKey;shiftKey=sp.ow;paintShape(sp.md,sp.x0,sp.y0,sp.x1,sp.y1,erasing?ERASE:tool);shiftKey=sk;}drawing=false;if(panning){panning=null;stage.classList.remove('drag','pan');}};
+const endDraw=()=>{if(shapePrev){const sp=shapePrev;shapePrev=null;const sk=shiftKey;shiftKey=sp.ow;paintShape(sp.md,sp.x0,sp.y0,sp.x1,sp.y1,erasing?tool2:tool);shiftKey=sk;}drawing=false;if(panning){panning=null;stage.classList.remove('drag','pan');}};
 const endPtr=e=>{if(e.pointerType==='touch'&&touchUp(e))return;endDraw();};
 stage.addEventListener('pointerup',endPtr);stage.addEventListener('pointercancel',endPtr);
 stage.addEventListener('pointerleave',()=>{brushEl.style.display='none';hoverI=-1;});
@@ -1320,9 +1324,9 @@ function loop(now){
   const dt=now-last;last=now;fps+=(1000/Math.max(dt,1)-fps)*.05;
   const t0=performance.now();zoomAnim();
   if(!paused){
-    if(drawing&&curX>=0&&isFree()){const tl=erasing?ERASE:tool;paintAt(curX,curY,tl);}
+    if(drawing&&curX>=0&&isFree()){const tl=erasing?tool2:tool;paintAt(curX,curY,tl);}
     stepAcc+=steps;while(stepAcc>=1){stepAcc--;simStep();}
-  }else if(drawing&&curX>=0&&CONT[tool]&&!erasing&&isFree()){paintAt(curX,curY,tool);}
+  }else if(drawing&&curX>=0&&CONT[erasing?tool2:tool]&&isFree()){paintAt(curX,curY,erasing?tool2:tool);}
   if((frameN&3)===0) magStep();
   const t1=performance.now();simMs+=(t1-t0-simMs)*.1;
   render(); drawOverlay(frameN);

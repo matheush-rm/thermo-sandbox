@@ -199,7 +199,7 @@ function gravPost(px){
 // sobreposição: malha do poço de potencial, setas de g, marcadores, disco de acreção e ondas gravitacionais
 function drawGrav(oc,sx,sy,dpr,fn){
   if(!gAny&&!gWaves.length) return;
-  const showM=view===GVIEW||tool===GRAVT;
+  const showM=view===GVIEW||tool===GRAVT||tool2===GRAVT;
   if(view===GVIEW&&gAny){
     const q=gS.map(s=>Math.max(0,Math.min(1,Math.log10(s.M/GM0)/(Math.log10(GMMAX/GM0))))),R0=40,ST=8;
     const warp=(x,y)=>{let X=x,Y=y;for(let s=0;s<gS.length;s++){const S=gS[s],dx=S.x-x,dy=S.y-y,r=Math.hypot(dx,dy);
