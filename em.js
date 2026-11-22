@@ -585,5 +585,5 @@ function drawOverlay(fn){
 }
 
 // ================= inicialização =================
-fitOv();clearAll();PRESETS.tank();setAir(true);setBlast(true);updateLegend();
+fitOv();lid=true;updLidBtn();PRESETS.teslacoil();setAir(true);setBlast(true);updateLegend();
 requestAnimationFrame(loop);
