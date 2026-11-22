@@ -1030,7 +1030,7 @@ searchEl.onkeydown=e=>{if(e.key==='Escape'){searchEl.value='';renderPalette();se
     b.dataset.tip=nm+'|'+ds;b.onclick=()=>setMode(md);railEl.appendChild(b);}}
 function setMode(md){drawMode=md;brushSq=md==='sq';railEl.querySelectorAll('.md').forEach(e=>e.classList.toggle('on',e.dataset.md===md));}
 // tooltip
-document.addEventListener('pointerover',e=>{const t=e.target.closest('[data-tip]');if(!t){tipEl.style.opacity=0;return;}
+document.addEventListener('pointerover',e=>{const t=e.target.closest('[data-tip]');if(!t||e.pointerType==='touch'){tipEl.style.opacity=0;return;}
   const [a,b]=t.dataset.tip.split('|');tipEl.innerHTML='<b>'+a+'</b>'+(b?'<span>'+b+'</span>':'');
   const r=t.getBoundingClientRect();tipEl.style.opacity=1;
   let x=r.right+10,y=r.top+r.height/2-tipEl.offsetHeight/2;
@@ -1168,7 +1168,22 @@ function updBrush(e){const [x,y,r]=cellOf(e),sr=stage.getBoundingClientRect();co
   brushEl.style.left=(e.clientX-sr.left)+'px';brushEl.style.top=(e.clientY-sr.top)+'px';
   curX=x;curY=y;hoverI=(x>=0&&x<W&&y>=0&&y<H)?y*W+x:-1;}
 stage.addEventListener('contextmenu',e=>e.preventDefault());
+// toque: 2 dedos = pinça (zoom) + arrastar vista; cancela traço iniciado pelo 1º dedo
+const touches=new Map();let pinch=null,touchLock=false;
+function pinchInfo(){const [a,b]=[...touches.values()];return {d:Math.hypot(a.x-b.x,a.y-b.y)||1,x:(a.x+b.x)/2,y:(a.y+b.y)/2};}
+function touchDown(e){touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(touches.size<2)return touchLock;
+  if(drawing||shapePrev){drawing=false;shapePrev=null;if(undoS.length){restore(undoS.pop());updHist();}}
+  const p=pinchInfo(),r=stage.getBoundingClientRect();
+  pinch={d0:p.d,z0:Z,cx:ZX+(p.x-r.left)/r.width*W/Z,cy:ZY+(p.y-r.top)/r.height*H/Z};zT=null;touchLock=true;brushEl.style.display='none';return true;}
+function touchMove(e){if(!touches.has(e.pointerId))return false;touches.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(!pinch||touches.size<2)return touchLock;
+  const p=pinchInfo(),r=stage.getBoundingClientRect();Z=Math.max(1,Math.min(ZMAX,pinch.z0*p.d/pinch.d0));
+  ZX=pinch.cx-(p.x-r.left)/r.width*W/Z;ZY=pinch.cy-(p.y-r.top)/r.height*H/Z;applyZoom();return true;}
+function touchUp(e){if(!touches.delete(e.pointerId))return false;const was=touchLock;
+  if(touches.size<2)pinch=null;if(!touches.size){touchLock=false;brushEl.style.display='none';hoverI=-1;}return was;}
 stage.addEventListener('pointerdown',e=>{stage.setPointerCapture(e.pointerId);updBrush(e);
+  if(e.pointerType==='touch'&&touchDown(e))return;
   if(e.button===1||e.altKey){e.preventDefault();panning={x:e.clientX,y:e.clientY,zx:ZX,zy:ZY};zT=null;stage.classList.add('pan','drag');brushEl.style.display='none';return;}
   if(e.ctrlKey||e.metaKey){pinI=hoverI;return;}
   if(tool===WIND){windDX=0;windDY=0;}
@@ -1180,6 +1195,7 @@ stage.addEventListener('pointerdown',e=>{stage.setPointerCapture(e.pointerId);up
   if(!isFree()){shapePrev={md:drawMode,x0:curX,y0:curY,x1:curX,y1:curY,cx:curX,cy:curY,ow:shiftKey};return;}
   if(!CONT[tl]) paintAt(curX,curY,tl);});
 stage.addEventListener('pointermove',e=>{
+  if(e.pointerType==='touch'&&touchMove(e))return;
   if(panning){const r=stage.getBoundingClientRect();ZX=panning.zx-(e.clientX-panning.x)/r.width*W/Z;ZY=panning.zy-(e.clientY-panning.y)/r.height*H/Z;applyZoom();return;}
   stage.classList.toggle('pan',e.altKey);
   updBrush(e);shiftKey=e.shiftKey;
@@ -1191,7 +1207,8 @@ function constrainShape(){const sp=shapePrev;if(!sp)return;let dx=sp.cx-sp.x0,dy
     else{const d=Math.max(Math.abs(dx),Math.abs(dy));dx=(dx<0?-1:1)*d;dy=(dy<0?-1:1)*d;}}
   sp.x1=sp.x0+dx;sp.y1=sp.y0+dy;}
 const endDraw=()=>{if(shapePrev){const sp=shapePrev;shapePrev=null;const sk=shiftKey;shiftKey=sp.ow;paintShape(sp.md,sp.x0,sp.y0,sp.x1,sp.y1,erasing?ERASE:tool);shiftKey=sk;}drawing=false;if(panning){panning=null;stage.classList.remove('drag','pan');}};
-stage.addEventListener('pointerup',endDraw);stage.addEventListener('pointercancel',endDraw);
+const endPtr=e=>{if(e.pointerType==='touch'&&touchUp(e))return;endDraw();};
+stage.addEventListener('pointerup',endPtr);stage.addEventListener('pointercancel',endPtr);
 stage.addEventListener('pointerleave',()=>{brushEl.style.display='none';hoverI=-1;});
 stage.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
 
