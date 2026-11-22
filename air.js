@@ -56,9 +56,10 @@ function airStep(){
       if(aBlk[c]){avx[c]=0;avy[c]=0;continue;}
       const dr=1-.05*aDen[c];
       if(cx<AW-1&&!aBlk[c+1]){let u=avx[c]*dr*.998-(ap[c+1]-ap[c])*.5*(aKv[c]+aKv[c+1]);
+        if(gAny&&aGas[c]&&aGas[c+1]){const rf=.5*(aRho[c]+aRho[c+1]);let b=(rf-RHO_AIR)/rf;b=b>1?1:b<-4?-4:b;u+=BUOY*.5*(gCx[c]+gCx[c+1])*b;} // empuxo na direção de g local (grav.js)
         avx[c]=u>AV_MAX?AV_MAX:u<-AV_MAX?-AV_MAX:u;} else avx[c]=0;
       if(cy<AH-1&&!aBlk[c+AW]){const n=c+AW;let v=avy[c]*dr*.998-(ap[n]-ap[c])*.5*(aKv[c]+aKv[n]);
-        if(gb>0&&aGas[c]&&aGas[n]){const rf=.5*(aRho[c]+aRho[n]);let b=(rf-RHO_AIR)/rf;b=b>1?1:b<-4?-4:b;v+=gb*b;}
+        if((gb>0||gAny)&&aGas[c]&&aGas[n]){const rf=.5*(aRho[c]+aRho[n]);let b=(rf-RHO_AIR)/rf;b=b>1?1:b<-4?-4:b;v+=(gb+BUOY*.5*(gCy[c]+gCy[n]))*b;}
         avy[c]=v>AV_MAX?AV_MAX:v<-AV_MAX?-AV_MAX:v;} else avy[c]=0;
     }}
   // 3) advecção semi-lagrangiana da velocidade (termo (u·∇)u: vórtices e jatos se transportam)
@@ -226,6 +227,7 @@ function explodeStep(){
         breakFixed(j,m);
       }
       exO[j]=o; exQ[qt++]=j;
+      if(FISS[mat[j]]){const c=Math.min(1.6,2*mills((Math.sqrt(d2)*DX+.05)/cw)/2e9);if(c>cmp[j])cmp[j]=c;} // implosão: choque comprime o núcleo (ρ↑ → massa crítica ∝ 1/ρ²)
       {const mm=mat[j],k=kind[mm]; // impulso nos detritos: Δv ∝ ΔP/ρ, radial
         if(k!==GAS&&k!==FIX){const d=Math.sqrt(d2)+.5;let v=mills((d*DX+.05)/cw)/(Math.max(rho0[mm],20)*FLYK);
           if(v>.08){if(v>FLY_MAX)v=FLY_MAX;pvx[j]+=v*dx/d;pvy[j]+=v*dy/d-v*.25;flyOn=true;}}}
@@ -250,7 +252,7 @@ function flyStep(){
       const m=mat[i],k=kind[m];
       if(k===GAS||k===FIX){pvx[i]=0;pvy[i]=0;continue;}
       if(mv[i]===stamp) continue;
-      vy+=g;vx*=.97;vy*=.97;
+      vx+=gfx[i];vy+=g+gfy[i];vx*=.97;vy*=.97; // + gravidade local (grav.js)
       const s=Math.abs(vx)>Math.abs(vy)?Math.abs(vx):Math.abs(vy);
       if(s<.08){pvx[i]=0;pvy[i]=0;continue;}
       any=true;pvx[i]=vx;pvy[i]=vy;

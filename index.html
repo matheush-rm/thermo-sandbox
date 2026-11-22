@@ -228,6 +228,8 @@ dialog code{font-family:var(--mono);color:var(--txt);font-size:11.5px;background
         <button data-v="3" title="Tecla 4">Elétrico</button>
         <button data-v="4" title="Tecla 5">Magnético</button>
         <button data-v="5" title="Tecla 6">Ar</button>
+        <button data-v="6" title="Tecla 7">Radiação</button>
+        <button data-v="7" title="Tecla 8">Gravidade</button>
       </div>
       <div class="sp"></div>
       <select class="ib" id="sPreset" title="Carregar cenário" style="max-width:150px">
@@ -239,6 +241,11 @@ dialog code{font-family:var(--mono);color:var(--txt);font-size:11.5px;background
         <option value="storm">Tempestade com raios</option>
         <option value="tesla">Descarga de alta tensão</option>
         <option value="teslacoil">Bobina de Tesla</option>
+        <option value="radiation">Radiação e blindagem</option>
+        <option value="reactor">Reator nuclear</option>
+        <option value="nukeGun">Bomba atômica (canhão)</option>
+        <option value="nukeImp">Bomba atômica (implosão)</option>
+        <option value="nukeArm">Bomba atômica (detonador manual)</option>
         <option value="circuit">Circuito elétrico</option>
         <option value="magnets">Ímãs e limalha</option>
         <option value="life">Jogo da vida</option>
@@ -301,7 +308,7 @@ dialog code{font-family:var(--mono);color:var(--txt);font-size:11.5px;background
       <div class="ctl"><label for="sBrush">Pincel</label><output id="oBrush"></output><input type="range" id="sBrush" min="0" max="20" value="4"></div>
       <div class="ctl"><label for="sGrav">Gravidade</label><output id="oGrav"></output><input type="range" id="sGrav" min="0" max="10" step="0.1" value="1"></div>
       <div class="ctl"><label for="sSpeed">Velocidade</label><output id="oSpeed"></output><input type="range" id="sSpeed" min="0" max="6" value="4"></div>
-      <div class="row"><button class="ib" id="bLid">Tampa aberta</button></div>
+      <div class="row"><button class="ib" id="bLid">Tampa aberta</button><button class="ib" id="bGravZ">Zerar massas</button></div>
     </details>
 
     <details class="panel card sec" open>
@@ -332,6 +339,19 @@ dialog code{font-family:var(--mono);color:var(--txt);font-size:11.5px;background
     </details>
 
     <details class="panel card sec">
+      <summary><h2>Radiação</h2></summary>
+      <div class="keys">
+        <kbd>α</kbd><span>alcance de cm; papel/pele param (perigo se inalado: radônio)</span>
+        <kbd>β</kbd><span>~1 m no ar; parado por mm de metal/plástico</span>
+        <kbd>γ</kbd><span>atenuação exponencial e<sup>−μx</sup>; chumbo &gt; concreto &gt; água</span>
+        <kbd>n</kbd><span>fissão: n + U-235/Pu-239 → 2–3 n + calor; água/grafite moderam, boro absorve</span>
+        <kbd>k</kbd><span>massa crítica: se cada fissão gera &gt;1 nova, cresce; vazamento cai com tamanho e densidade²</span>
+        <kbd>Sv</kbd><span>&gt;1 Sv/h esteriliza vida; &gt;3 Sv acumulado letal; dose causa mutação</span>
+      </div>
+      <p style="color:var(--mut);font-size:11px;margin:6px 0 0">⚠️ simplificado: geometria 2D (queda ~1/r), meia-vidas aceleradas, rendimento estimado (assumido).</p>
+    </details>
+
+    <details class="panel card sec">
       <summary><h2>Atalhos</h2></summary>
       <div class="keys">
         <kbd>Esq.</kbd><span>desenhar</span>
@@ -349,7 +369,7 @@ dialog code{font-family:var(--mono);color:var(--txt);font-size:11.5px;background
         <kbd>Ctrl+S / O</kbd><span>salvar / abrir cenário</span>
         <kbd>P</kbd><span>captura PNG</span>
         <kbd>B L R E G</kbd><span>pincel, linha, retângulo, elipse, balde</span>
-        <kbd>1–5</kbd><span>visualização</span>
+        <kbd>1–8</kbd><span>visualização</span>
         <kbd>[ ]</kbd><span>tamanho do pincel</span>
         <kbd>/</kbd><span>buscar material</span>
       </div>
@@ -379,6 +399,8 @@ dialog code{font-family:var(--mono);color:var(--txt);font-size:11.5px;background
       <li>⚠️ Simplificações (assumidas): circuito elétrico trata a câmara como placa de 10 cm de espessura, mas ímãs e ferro como colunas longas em profundidade (campo 2D; placa fina daria ~0,03 T e nada seria atraído); ferro magnetizado só pelo campo dos ímãs/correntes (sem interação ferro–ferro); limalha com χ efetivo 5 (grãos alongados); sólidos/líquidos acima de 5000 K vaporizam; sem indução de Faraday nem força de Lorentz em correntes; nuvem e lapse rate comprimidos para caber em 20 m; carga por colisão escalada e a carga do cristal é levada 1–2,5 m acima (corrente ascendente comprimida no tempo); calor do canal de raio multiplicado por 3·10⁵ (a placa fina subestima a energia de uma coluna real, ~10⁵ J/m); σ do plasma limitada a ~10⁴·ε₀/Δt (canal continua equipotencial; com fonte ideal o arco fica limitado a ~MΩ); carga por célula limitada a 2 µC (corona); recombinação τ≈50 ms.</li>
       <li><b>Ar dinâmico:</b> Euler compressível linearizado em grade 100×100 (células de 20 cm), velocidade nas faces: <code>∂p/∂t = −γP₀∇·u</code>, <code>∂u/∂t = −∇p/ρ − (u·∇)u + g(ρ−ρ₀)/ρ</code>. Fontes: aquecimento de gás <code>Δp = p·ΔT/T</code> (fogo e aquecedores expandem o ar, frio contrai), vaporização (explosão de vapor) e explosões. Compressão/expansão aquece/esfria o gás adiabaticamente <code>T·(p₂/p₁)^((γ−1)/γ)</code>; gás leve/quente sobe por empuxo. O ar transporta fumaça, fogo e calor e arrasta pós e líquidos (acoplamento ∝ 1/√ρ). Sólidos fixos bloqueiam o escoamento; a onda reflete nas paredes e escapa pelo topo aberto. Ferramentas <b>Vento</b> (arrastar) e <b>Ciclone</b> (segurar; Shift inverte).</li>
       <li><b>Explosivos:</b> C‑4 (2,1 kg TNT/célula) e nitroglicerina (2,4 kg, sensível a choque). A carga conectada detona inteira; pico de sobrepressão por Mills <code>ΔP = 1772/Z³ − 114/Z² + 108/Z</code> kPa, <code>Z = R/W^(1/3)</code>; sólido rompe se <code>2ΔP</code> (reflexão) supera a resistência, e a frente contorna obstáculos. A sobrepressão também entra no campo de ar (onda de choque visível, arremessa detritos) e detona cargas vizinhas por simpatia. Ácido nítrico: dissolve metais (NO₂), inflama orgânicos, reação explosiva com álcool.</li>
+      <li><b>Gravidade:</b> ferramenta coloca massas pontuais (segurar: M ×1,07 por quadro, de 10⁹ a 2·10²⁷ kg; Shift diminui). Campo newtoniano real <code>g = Σ GM·r̂/r²</code> somado à gravidade do painel: grãos e líquidos caem, escorregam e se espalham na direção local de g (pilhas e oceanos esféricos), detritos seguem trajetórias balísticas (órbitas que decaem pelo arrasto do ar), a pressão hidrostática integra <code>ρ g·dl</code> (atmosfera comprimida e aquecida em volta da massa) e o ar quente sobe contra g. Maré <code>2GM/r³</code> rasga sólidos quando <code>ρ·(2GM/r³)·L² &gt; σ</code> (espaguetificação). Com <code>r_s = 2GM/c² ≥ 5 cm</code> (M ≈ 3,4·10²⁵ kg, ~6 Terras) forma-se um <b>buraco negro</b>: horizonte absorve tudo (massa somada), suga o ar, disco de acreção aquece dentro da ISCO (3 r_s), sombra de 2,6 r_s com anel de fótons e lente gravitacional; dois buracos negros que se tocam fundem irradiando ~5% da massa em ondas gravitacionais. Inspetor mostra g, velocidade de escape, dilatação do tempo <code>√(1−r_s/r)</code> e temperatura Hawking. Vista <b>Gravidade</b> (tecla 8): |g| em escala log, setas de g e malha do poço de potencial.</li>
+      <li>⚠️ Simplificações (assumidas): fontes fixas no lugar (não se atraem entre si); autogravidade da matéria desprezada (real: ~10⁻⁸ m/s²); hidrostática limitada a 100 g e empuxo do ar a 30 g (gás ideal divergiria); velocidade limitada a 4 células/passo; aquecimento do disco limitado a 5500 K; maré avaliada em L = 1 célula; sombra/lente desenhadas para um observador distante; forças elétrica/magnética ignoradas onde a gravidade local domina.</li>
       <li>⚠️ Simplificações (assumidas): velocidade do som do ar reduzida (~0,3 célula grossa/passo) para caber na escala de tempo; fonte térmica escalada por 0,15; injeção de pressão da explosão limitada a 20 atm no campo de ar (o dano de perto usa Mills, sem limite); bola de fogo ~3·∛n+2 células.</li>
       <li>⚠️ Simplificações (assumidas): condução térmica com escala de tempo comprimida; volume 1:1 nas mudanças de fase (cada célula de vapor nova carrega 5% da massa do líquido); sólidos soltos só se movem na vertical.</li>
     </ul>
@@ -387,6 +409,8 @@ dialog code{font-family:var(--mono);color:var(--txt);font-size:11.5px;background
 
 <script src="sim.js"></script>
 <script src="air.js"></script>
+<script src="grav.js"></script>
+<script src="rad.js"></script>
 <script src="em.js"></script>
 </body>
 </html>

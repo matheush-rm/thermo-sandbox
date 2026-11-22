@@ -543,6 +543,8 @@ function drawOverlay(fn){
       if(bz<0){oc.fillStyle=oc.strokeStyle;oc.beginPath();oc.arc(X,Y,r*.3,0,6.2832);oc.fill();}
       else{const q=r*.6;oc.beginPath();oc.moveTo(X-q,Y-q);oc.lineTo(X+q,Y+q);oc.moveTo(X+q,Y-q);oc.lineTo(X-q,Y+q);oc.stroke();}}}
   if(view===5) drawAir(oc,sx,sy,dpr,fn); // linhas de vento
+  drawGrav(oc,sx,sy,dpr,fn); // poço de potencial, buracos negros, ondas gravitacionais
+  if(view===6) drawRad(oc,sx,sy,dpr); // nêutrons
   // partículas de corrente
   if(elecLive&&(view===0||view===3)){
     if(fn%8===0)updCurList(ith);

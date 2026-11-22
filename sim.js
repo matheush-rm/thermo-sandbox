@@ -6,9 +6,11 @@ const AR=0,PAREDE=1,AGUA=2,SALMOURA=3,OLEO=4,MERCURIO=5,MEL=6,ALCOOL=7,LAVA=8,N2
   ACO=12,CONCRETO=13,VIDRO=14,LATA=15,BASALTO=16,RESIST=17,MADEIRA=18,MADEIRAE=19,ISOPOR=20,ISOPORC=21,
   GELO=22,HGS=23,AREIA=24,SAL=25,CACOS=26,ENTULHO=27,SUCATA=28,CINZA=29,VAPOR=30,VALC=31,N2G=32,VHG=33,
   FUMACA=34,FOGO=35,HELIO=36,COBRE=37,COBREF=38,NICROMO=39,IMA=40,LIMALHA=41,FERROFL=42,FONTEP=43,FONTEN=44,
-  TERRA=45,NUVEM=46,GRANIZO=47,VIDA=48,C4=49,NITRO=50,HNO3=51,NM=52;
+  TERRA=45,NUVEM=46,GRANIZO=47,VIDA=48,C4=49,NITRO=50,HNO3=51,
+  U235=52,PU239=53,UNAT=54,CORIO=55,PFIS=56,RADIO=57,RADONIO=58,COBALTO=59,CESIO=60,CHUMBO=61,CHUMBOF=62,GRAFITE=63,BORO=64,AMBE=65,VIDAM=66,NM=67;
 const ERASE=100,HEAT=101,COOL=102,CHGP=103,CHGN=104,FLIP=105,SPARK=106,WIND=107,CYCL=108;
-const CONT={[HEAT]:1,[COOL]:1,[CHGP]:1,[CHGN]:1,[SPARK]:1,[CYCL]:1}; // ferramentas aplicadas continuamente
+const GRAVT=120; // ferramenta Gravidade (grav.js)
+const CONT={[GRAVT]:1,[HEAT]:1,[COOL]:1,[CHGP]:1,[CHGN]:1,[SPARK]:1,[CYCL]:1}; // ferramentas aplicadas continuamente
 
 // hi/lo: [tipo(1 const,2 ebulição C-C,3 Clapeyron linear), T0(K), Lm(J/mol) ou dT/dP, destino, latente(K eq.), Tcrítica]
 const D=[];
@@ -65,6 +67,22 @@ D[C4]       ={n:'C-4',kind:FIX,rho:1600,k:.25,C:1.6,col:[222,212,176],var:10,ex:
 D[NITRO]    ={n:'Nitroglicerina',kind:LIQ,rho:1600,k:.29,C:1.9,beta:8e-4,kap:5e-10,mob:.55,disp:3,col:[226,232,168],var:8,ex:[2.4,490,1.5e5]};
 D[HNO3]     ={n:'Ácido nítrico',kind:LIQ,rho:1510,k:.3,C:2.6,beta:1.2e-3,kap:7e-10,mob:1,disp:5,col:[232,196,92],var:10,hi:[1,356,0,FUMACA,200]};
 D[GRANIZO]  ={n:'Granizo (graupel)',kind:POW,rho:700,k:2,C:1.4,col:[226,236,246],var:14,hi:[1,273.15,0,AGUA,80],T0:258};
+// radioativos / nucleares (emissão e nêutrons em rad.js)
+D[U235]     ={n:'Urânio-235 (enriquecido)',kind:MOV,rho:19050,k:27,C:2.2,col:[96,116,86],var:10,hi:[1,1405,0,CORIO,330]};
+D[PU239]    ={n:'Plutônio-239',kind:MOV,rho:19800,k:6.7,C:2.6,col:[150,138,128],var:10,hi:[1,913,0,CORIO,90]};
+D[UNAT]     ={n:'Urânio natural',kind:MOV,rho:19050,k:27,C:2.2,col:[72,78,72],var:10,hi:[1,1405,0,CORIO,330]};
+D[CORIO]    ={n:'Cório (combustível fundido)',kind:LIQ,rho:8000,k:3,C:4,beta:1e-4,kap:1e-10,mob:.12,disp:2,col:[255,118,40],var:36,lo:[1,1300,0,PFIS,200],hi:[1,3500,0,FUMACA,300],T0:2000};
+D[PFIS]     ={n:'Produtos de fissão (fallout)',kind:POW,rho:1200,k:.3,C:1.2,col:[118,128,96],var:30};
+D[RADIO]    ={n:'Rádio-226',kind:POW,rho:5000,k:18.6,C:.6,col:[196,226,206],var:12};
+D[RADONIO]  ={n:'Radônio-222',kind:GAS,M:.222,gam:1.67,cpg:94,k:.0036,col:[140,220,170],a:.35};
+D[COBALTO]  ={n:'Cobalto-60',kind:FIX,rho:8900,k:100,C:3.7,str:200e6,crush:SUCATA,col:[112,124,178],var:6};
+D[CESIO]    ={n:'Cloreto de césio-137',kind:POW,rho:3990,k:1,C:1.9,col:[224,232,255],var:14};
+D[CHUMBO]   ={n:'Chumbo',kind:FIX,rho:11340,k:35,C:1.45,str:12e6,crush:SUCATA,col:[92,96,110],var:6,hi:[1,600.6,0,CHUMBOF,180]};
+D[CHUMBOF]  ={n:'Chumbo fundido',kind:LIQ,rho:10660,k:16,C:1.5,beta:1.2e-4,kap:2e-11,mob:.9,disp:3,col:[176,178,190],var:8,lo:[1,600.6,0,CHUMBO,180],T0:700};
+D[GRAFITE]  ={n:'Grafite (moderador)',kind:FIX,rho:1700,k:120,C:1.2,str:20e6,crush:CINZA,col:[50,50,56],var:8,ign:1020,fl:200,fsp:.02};
+D[BORO]     ={n:'Carbeto de boro (absorvedor)',kind:FIX,rho:2520,k:30,C:2.4,str:300e6,crush:ENTULHO,col:[36,42,36],var:6};
+D[AMBE]     ={n:'Fonte de nêutrons (Am-Be)',kind:FIX,rho:3000,k:5,C:2,col:[196,118,220],var:6};
+D[VIDAM]    ={n:'Vida mutante (B36/S23)',kind:FIX,rho:1050,k:.5,C:3.6,str:400e3,crush:CINZA,col:[206,96,226],var:24,ign:450,fl:20,fsp:.5};
 
 // elétrico: [σ condutividade S/m, εr permissividade relativa, rigidez dielétrica MV/m (0 = não rompe)]
 const EL={
@@ -76,7 +94,9 @@ const EL={
  [VAPOR]:[1e-14,1,2.7],[VALC]:[1e-14,1,3],[N2G]:[1e-15,1,3.4],[VHG]:[1e-14,1,1],[FUMACA]:[1e-13,1,2.5],[FOGO]:[1e-4,1,.6],[HELIO]:[1e-15,1,.45],
  [COBRE]:[5.96e7,1,0],[COBREF]:[5e6,1,0],[NICROMO]:[9.1e5,1,0],[IMA]:[6.7e5,1,0],[LIMALHA]:[1e3,1,0],[FERROFL]:[1e-8,5,10],
  [FONTEP]:[6e7,1,0],[FONTEN]:[6e7,1,0],[TERRA]:[6e7,1,0],[NUVEM]:[1e-13,1,1],[GRANIZO]:[1e-9,3.2,10],[VIDA]:[.5,50,0],
- [C4]:[1e-12,3,15],[NITRO]:[1e-9,19,10],[HNO3]:[50,50,0]
+ [C4]:[1e-12,3,15],[NITRO]:[1e-9,19,10],[HNO3]:[50,50,0],
+ [U235]:[3.6e6,1,0],[PU239]:[6.7e5,1,0],[UNAT]:[3.6e6,1,0],[CORIO]:[1e5,1,0],[PFIS]:[1e-6,5,3],[RADIO]:[1e-6,6,5],[RADONIO]:[1e-14,1,2.5],
+ [COBALTO]:[1.6e7,1,0],[CESIO]:[1e-8,6,10],[CHUMBO]:[4.8e6,1,0],[CHUMBOF]:[1e6,1,0],[GRAFITE]:[1e5,1,0],[BORO]:[1e2,8,0],[AMBE]:[1e-6,5,5],[VIDAM]:[.5,50,0]
 };
 // coef. térmico da resistividade (1/K)
 const ALPHA={[COBRE]:.0039,[LATA]:.0039,[ACO]:.005,[NICROMO]:.0004,[MERCURIO]:.0009,[IMA]:.001,[ALUF]:.001,[COBREF]:.001,[ACOF]:.001};
@@ -153,11 +173,13 @@ function setCell(i,m,t){
   gd[i]=kind[m]===GAS?p*molar[m]/(RG*t):0;
   if(m===FOGO){life[i]=60+(rnd()*60|0);lat[i]=0;}
   else if(m===FUMACA) life[i]=150;
+  radClearCell(i);
 }
 function convert(i,to){
   const from=mat[i];
   if(from===SALMOURA&&to===VAPOR&&rnd()<.25) to=SAL;
   mat[i]=to;lat[i]=0;life[i]=0;
+  if(to===PFIS&&rA[i]<PFIS_RA){rA[i]=PFIS_RA;rAny=true;} // cório solidificado: detrito radioativo
   const p=P[i]>0?P[i]:PATM; pp[i]=p; tOld[i]=T[i];
   if(kind[to]===GAS){
     if(kind[from]!==GAS) aInj[AF[i]]+=VAP_SRC; // vapor novo se expande (ebulição, explosão de vapor)
@@ -178,6 +200,7 @@ function swap(i,j){
   f=chg[i];chg[i]=chg[j];chg[j]=f; // carga viaja com a matéria (chuva, granizo)
   f=ion[i];ion[i]=ion[j];ion[j]=f;
   f=pvx[i];pvx[i]=pvx[j];pvx[j]=f; f=pvy[i];pvy[i]=pvy[j];pvy[j]=f; // momento balístico (detritos)
+  f=rA[i];rA[i]=rA[j];rA[j]=f; f=bu[i];bu[i]=bu[j];bu[j]=f; f=cmp[i];cmp[i]=cmp[j];cmp[j]=f; // contaminação viaja com a matéria
   mv[i]=stamp;mv[j]=stamp;
 }
 function copyFrom(i,j){mat[i]=mat[j];T[i]=T[j];tOld[i]=tOld[j];pp[i]=pp[j];gd[i]=gd[j];lat[i]=0;life[i]=0;chg[i]=0;}
@@ -192,6 +215,7 @@ function moveStep(){
     for(let xx=1;xx<W-1;xx++){
       const x=ltr?xx:W-1-xx,i=row+x;
       if(mv[i]===stamp) continue;
+      if(gLoc[i]&&gravMove(i,x,y)) continue; // gravidade local (grav.js)
       const m=mat[i],k=kind[m];
       if(k===FIX) continue;
       const j=i+W,mj=mat[j],kj=kind[mj];
@@ -296,11 +320,11 @@ function bfs(qh,qt,mark,hg){
   while(qh<qt){
     const i=q[qh++],pi=Pn[i],ri=rhoA[i],x=i%W;
     let j=i+W;
-    if(j<N&&vis[j]===0){vis[j]=mark;Pn[j]=pi+hg*(ri+rhoA[j]);q[qt++]=j;}
+    if(j<N&&vis[j]===0){vis[j]=mark;Pn[j]=pi+(hg+gHy[i])*(ri+rhoA[j]);q[qt++]=j;}
     j=i-W;
-    if(j>=0&&vis[j]===0){vis[j]=mark;Pn[j]=pi-hg*(ri+rhoA[j]);q[qt++]=j;}
-    if(x>0){j=i-1;if(vis[j]===0){vis[j]=mark;Pn[j]=pi;q[qt++]=j;}}
-    if(x<W-1){j=i+1;if(vis[j]===0){vis[j]=mark;Pn[j]=pi;q[qt++]=j;}}
+    if(j>=0&&vis[j]===0){vis[j]=mark;Pn[j]=pi-(hg+gHy[i])*(ri+rhoA[j]);q[qt++]=j;}
+    if(x>0){j=i-1;if(vis[j]===0){vis[j]=mark;Pn[j]=pi-gHx[i]*(ri+rhoA[j]);q[qt++]=j;}}
+    if(x<W-1){j=i+1;if(vis[j]===0){vis[j]=mark;Pn[j]=pi+gHx[i]*(ri+rhoA[j]);q[qt++]=j;}}
   }
   return qt;
 }
@@ -401,24 +425,27 @@ function lifeHazard(i){
   if(t>LIFE_TMAX||t<LIFE_TMIN||ionL[i]>.05||(IxC[i]<0?-IxC[i]:IxC[i])+(IyC[i]<0?-IyC[i]:IyC[i])>LIFE_IMAX){lifeKill(i);return true;}
   if(rnd()<.05){let l=0;if(kind[mat[i-1]]===LIQ)l++;if(kind[mat[i+1]]===LIQ)l++;if(kind[mat[i-W]]===LIQ)l++;if(kind[mat[i+W]]===LIQ)l++;
     if(l>=3){lifeKill(i);return true;}} // afogada
-  return false;
+  return radLife(i); // dose de radiação: morte e mutação (rad.js)
 }
+// mutante (rad.js) segue HighLife B36/S23; vizinhos contam as duas espécies (nibble alto = nº de mutantes)
 function lifeStep(){
   if(++lifeTick<lifeEvery) return; lifeTick=0;
   lifeN.fill(0); let any=false;
   for(let y=1;y<H-1;y++){const row=y*W;
-    for(let x=1;x<W-1;x++){const i=row+x; if(mat[i]!==VIDA||life[i]>0) continue; any=true; // em chamas não conta
-      lifeN[i-W-1]++;lifeN[i-W]++;lifeN[i-W+1]++;lifeN[i-1]++;lifeN[i+1]++;lifeN[i+W-1]++;lifeN[i+W]++;lifeN[i+W+1]++;}}
+    for(let x=1;x<W-1;x++){const i=row+x,m=mat[i]; if((m!==VIDA&&m!==VIDAM)||life[i]>0) continue; any=true; // em chamas não conta
+      const a=m===VIDAM?17:1;
+      lifeN[i-W-1]+=a;lifeN[i-W]+=a;lifeN[i-W+1]+=a;lifeN[i-1]+=a;lifeN[i+1]+=a;lifeN[i+W-1]+=a;lifeN[i+W]+=a;lifeN[i+W+1]+=a;}}
   if(!any) return;
   for(let y=1;y<H-1;y++){const row=y*W;
-    for(let x=1;x<W-1;x++){const i=row+x,n=lifeN[i],m=mat[i];
-      if(m===VIDA){ if(life[i]===0&&(n<2||n>3)) setCell(i,AR,T[i]); }
-      else if(n===3&&m===AR&&T[i]>LIFE_TMIN&&T[i]<LIFE_TMAX&&ionL[i]<.01) setCell(i,VIDA,T[i]);
+    for(let x=1;x<W-1;x++){const i=row+x,v=lifeN[i],n=v&15,nm=v>>4,m=mat[i];
+      if(m===VIDA||m===VIDAM){ if(life[i]===0&&(n<2||n>3)) setCell(i,AR,T[i]); }
+      else if((n===3||(n===6&&nm>=3))&&m===AR&&T[i]>LIFE_TMIN&&T[i]<LIFE_TMAX&&ionL[i]<.01&&radF[i]<RAD_STERILE)
+        setCell(i,nm>=2||n===6?VIDAM:VIDA,T[i]);
     }}
 }
 const acidR=new Uint8Array(NM); // 1 metal, 2 orgânico, 3 álcool, 4 alcalino (concreto), 5 água (diluição)
 for(const m of [ACO,LATA,COBRE,SUCATA,LIMALHA,IMA,MERCURIO])acidR[m]=1;
-for(const m of [MADEIRA,MADEIRAE,ISOPOR,ISOPORC,OLEO,MEL,VIDA])acidR[m]=2;
+for(const m of [MADEIRA,MADEIRAE,ISOPOR,ISOPORC,OLEO,MEL,VIDA,VIDAM])acidR[m]=2;
 acidR[ALCOOL]=3;acidR[CONCRETO]=4;acidR[AGUA]=5;acidR[SALMOURA]=5;
 function stateStep(){
   for(let y=1;y<H-1;y++){
@@ -462,7 +489,7 @@ function stateStep(){
           continue;
         }
       }
-      if(m===VIDA&&life[i]===0&&lifeHazard(i)) continue;
+      if((m===VIDA||m===VIDAM)&&life[i]===0&&lifeHazard(i)) continue;
       if(ignA[m]>0){ if(life[i]>0&&kind[m]!==GAS){burn(i,m);continue;} if(T[i]>ignA[m]&&hasOxy(i)){ignite(i);continue;} }
       if(k===FIX&&strA[m]>0){
         let mx=-1,mn=1e15,c=0;
@@ -507,6 +534,7 @@ function stateStep(){
 let brush=4,tool=AGUA,drawing=false,erasing=false,shiftKey=false,curX=-1,curY=-1,lastX=-1,lastY=-1,hoverI=-1;
 let brushSq=false; // pincel quadrado
 function paintAt(cx,cy,tl){
+  if(tl===GRAVT){gravPaint(cx,cy,shiftKey);return;}
   if(tl===CYCL){airCyclone(cx,cy,shiftKey);return;} if(tl===WIND){airWind(cx,cy);return;}
   const r=brush,r2=r*r+r*.8;
   for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
@@ -519,7 +547,7 @@ function paintAt(cx,cy,tl){
 // aplica ferramenta/material numa célula; solid: ignora preenchimento aleatório (formas, balde)
 function paintCell(i,tl,solid){
     const cm=mat[i];
-    if(cm===PAREDE||tl===WIND||tl===CYCL) return;
+    if(cm===PAREDE||tl===WIND||tl===CYCL||tl===GRAVT) return;
     if(tl===ERASE){ if(cm!==AR) setCell(i,AR,293.15); else chg[i]=0; return; }
     if(tl===CHGP||tl===CHGN){ if(!srcA[cm]) chg[i]+=tl===CHGP?qAmt:-qAmt; return; }
     if(tl===SPARK){ ion[i]=1; return; }
@@ -537,7 +565,7 @@ function paintCell(i,tl,solid){
     }
     const k=kind[tl],ck=kind[cm];
     if(cm===tl) return;
-    if(k===FIX){ if(!shiftKey&&ck===FIX) return; if(tl===VIDA&&!solid&&rnd()>.3) return; }
+    if(k===FIX){ if(!shiftKey&&ck===FIX) return; if((tl===VIDA||tl===VIDAM)&&!solid&&rnd()>.3) return; }
     else { if(!shiftKey&&ck!==GAS) return; if(!solid&&rnd()>fillA[tl]) return; }
     setCell(i,tl,tl===RESIST?heaterT:T0A[tl]);
     if(tl===IMA) magnetize(i,magDir);
@@ -575,7 +603,7 @@ function rectM(x0,y0,x1,y1,m,t){for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){i
 function boxM(x0,y0,x1,y1,th,m){rectM(x0,y0,x1,y0+th-1,m);rectM(x0,y1-th+1,x1,y1,m);rectM(x0,y0,x0+th-1,y1,m);rectM(x1-th+1,y0,x1,y1,m);}
 function magRect(x0,y0,x1,y1,d){rectM(x0,y0,x1,y1,IMA);for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)magnetize(y*W+x,d);}
 function clearAll(){
-  P.fill(PATM); emReset(); airReset();
+  P.fill(PATM); emReset(); airReset(); gravReset(); radReset(); rA.fill(0); bu.fill(0); cmp.fill(0); dAcc.fill(0);
   for(let i=0;i<N;i++) setCell(i,AR,293.15);
   for(let x=0;x<W;x++){setCell(x+(H-1)*W,PAREDE,293.15); if(lid) setCell(x,PAREDE,293.15);}
   for(let y=0;y<H;y++){setCell(y*W,PAREDE,293.15);setCell(y*W+W-1,PAREDE,293.15);}
@@ -733,6 +761,10 @@ const MST=[[0,[0,0,4]],[.25,[80,18,123]],[.5,[183,55,121]],[.75,[251,135,97]],[1
 const mlut=new Uint32Array(256); for(let i=0;i<256;i++){const c=lerpStops(MST,i/255);mlut[i]=pack(c[0]|0,c[1]|0,c[2]|0);}
 const plasmaL=new Int32Array(3000); let plasmaN=0,airRange=5000;
 const AIRP=pack(255,70,50),AIRN=pack(60,130,255),AIRV=pack(40,90,110);
+// dose: log10 1e-7..1e4 Sv/h (fundo natural ~1e-7 · letal em horas >1 Sv/h)
+const RST=[[0,[14,17,24]],[.2,[20,60,90]],[.4,[30,150,110]],[.55,[200,220,60]],[.7,[255,150,30]],[.85,[240,40,40]],[1,[255,220,255]]];
+const rlut=new Uint32Array(256); for(let i=0;i<256;i++){const c=lerpStops(RST,i/255);rlut[i]=pack(c[0]|0,c[1]|0,c[2]|0);}
+const CHER=pack(90,150,255),RAGL=pack(150,255,170);
 function poleC(i,c){const t=poleT[i]; if(t<0) return c; // polo N vermelho, S azul
   return t>.5?blend(MCOL,NCOL,Math.min(1,(t-.5)*2.4)):blend(MCOL,SCOL,Math.min(1,(.5-t)*2.4));}
 function render(){
@@ -749,6 +781,14 @@ function render(){
       if(m===FOGO){const f=(life[i]&7)/7; c=pack(255,(110+f*120)|0,(20+f*40)|0);}
       else if(t>700&&k!==GAS){const ti=t>4000?4000:t|0,a=glA[ti];c=blend(c,pack(glR[ti],glG[ti],glB[ti]),a);}
       else if(m===AR&&t>330){let a=(t-330)/900;if(a>.5)a=.5;c=blend(c,pack(150,60,20),a);}
+      if(radLive){const d=radF[i]; // Cherenkov na água sob fluxo intenso; radioluminescência do rádio
+        if(d>2&&(m===AGUA||m===SALMOURA)){let a=Math.log10(d/2)*.25+.15;if(a>.8)a=.8;c=blend(c,CHER,a);}}
+      if(m===RADIO) c=blend(c,RAGL,.25+.15*Math.random());
+    }else if(v===6){ // taxa de dose (Sv/h, escala log)
+      const d=radF[i];let r=d>1e-7?(Math.log10(d)+7)/11:0;if(r>1)r=1;
+      const rc=rlut[(r*255)|0];
+      c=k===GAS?rc:blend(dim(c,.45),rc,r>0?.6:0);
+      if(GAM[m]||BET[m]||ALF[m]||rA[i]>.05) c=blend(c,RAGL,.35);
     }else if(v===3){ // potencial elétrico (divergente), corrente e carga
       const vv=Vf[i]*ivs; let s=vv<0?-vv:vv; s=s>1?1:Math.sqrt(s);
       const vc=blend(BGC,vv>=0?VPOS:VNEG,s);
@@ -787,6 +827,7 @@ function render(){
     if(io>.03){c=blend(c,PLC,io>1?1:io); if(io>.2&&plasmaN<plasmaL.length) plasmaL[plasmaN++]=i;}
     u32[i]=c;
   }
+  gravPost(u32); // vista de gravidade + lente do buraco negro (grav.js)
   ctx.putImageData(img,0,0);
   cntP=cnt; maxT=mt; maxG=mg;
   const target=mg>2000?mg:2000;
@@ -895,14 +936,43 @@ const GROUPS=[
  ['Elétrica',[COBRE,NICROMO,FONTEP,FONTEN,TERRA]],
  ['Magnetismo',[IMA,LIMALHA,FERROFL]],
  ['Clima',[NUVEM,GRANIZO]],
- ['Vida',[VIDA]],
+ ['Vida',[VIDA,VIDAM]],
+ ['Radiação',[U235,PU239,UNAT,AMBE,RADIO,COBALTO,CESIO,GRAFITE,BORO,CHUMBO,PFIS,CORIO,RADONIO]],
  ['Explosivos',[C4,NITRO,HNO3]],
- ['Ferramentas',[ERASE,HEAT,COOL,CHGP,CHGN,FLIP,SPARK,WIND,CYCL]]
+ ['Ferramentas',[ERASE,HEAT,COOL,CHGP,CHGN,FLIP,SPARK,WIND,CYCL,GRAVT]]
 ];
 const SUB={[ERASE]:'',[HEAT]:'+Q',[COOL]:'−Q',[RESIST]:'aquecedor',[FOGO]:'~1100 °C',[VAPOR]:'gás',[HELIO]:'gás',
   [COBRE]:'6·10⁷ S/m',[NICROMO]:'9·10⁵ S/m',[FONTEP]:'+V/2',[FONTEN]:'−V/2',[TERRA]:'0 V',[IMA]:'1,2 T',[LIMALHA]:'ferromag.',
   [FERROFL]:'ferromag.',[NUVEM]:'gás',[GRANIZO]:'ρ 700',[VIDA]:'B3/S23',[CHGP]:'+q',[CHGN]:'−q',[FLIP]:'±',[SPARK]:'plasma',[C4]:'2,1 kg TNT',[NITRO]:'2,4 kg TNT',[HNO3]:'oxidante',[WIND]:'ar',[CYCL]:'vórtice'};
 const NAMES={[ERASE]:'Borracha',[HEAT]:'Aquecer',[COOL]:'Resfriar',[CHGP]:'Carga +',[CHGN]:'Carga −',[FLIP]:'Inverter polo',[SPARK]:'Faísca',[WIND]:'Vento',[CYCL]:'Ciclone'};
+NAMES[GRAVT]='Gravidade';SUB[GRAVT]='massa';
+DESC[GRAVT]='segure para aumentar a massa local (×1,07/quadro, g = GM/r²); Shift diminui · r_s = 2GM/c² ≥ 5 cm → buraco negro';
+IC[GRAVT]='<svg viewBox="0 0 32 32"><ellipse cx="16" cy="16" rx="13" ry="5" stroke="#c8b4ff" stroke-width="2" fill="none"/><path d="M5 10c4 3 7 4 11 4s7-1 11-4M5 22c4-3 7-4 11-4s7 1 11 4" stroke="#8f7ad8" stroke-width="1.4" fill="none"/><circle cx="16" cy="16" r="4.5" fill="#0b0b10" stroke="#ffcf8a" stroke-width="1.6"/></svg>';
+// ---- radiação (rad.js) ----
+const trefoil=(bg,fg,x)=>'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="'+bg+'"/><g fill="'+fg+'"><circle cx="16" cy="16" r="2.4"/>'+[0,120,240].map(a=>'<path d="M16 16L'+(16+11*Math.cos((a-30)*Math.PI/180)).toFixed(1)+' '+(16+11*Math.sin((a-30)*Math.PI/180)).toFixed(1)+'A11 11 0 0 1 '+(16+11*Math.cos((a+30)*Math.PI/180)).toFixed(1)+' '+(16+11*Math.sin((a+30)*Math.PI/180)).toFixed(1)+'z" transform="rotate(-90 16 16)" opacity=".9"/>').join('')+'</g><circle cx="16" cy="16" r="4" fill="'+bg+'"/><circle cx="16" cy="16" r="2.2" fill="'+fg+'"/>'+(x||'')+'</svg>';
+const blk=(c,e,t)=>'<svg viewBox="0 0 32 32"><rect x="5" y="7" width="22" height="18" rx="2" fill="'+c+'" stroke="'+e+'" stroke-width="1.5"/><text x="16" y="20.5" text-anchor="middle" font-size="9" font-family="monospace" font-weight="700" fill="'+e+'">'+t+'</text></svg>';
+Object.assign(IC,{[U235]:trefoil('#3d5a2a','#b7f27a'),[PU239]:trefoil('#5a3a2a','#ffb27a'),[UNAT]:trefoil('#3a3f3a','#9aa89a'),
+ [AMBE]:trefoil('#2a2f4a','#9ab0ff'),[RADIO]:trefoil('#1a3a28','#8affb0'),[COBALTO]:trefoil('#2a3448','#8fb4ff'),[CESIO]:trefoil('#4a4020','#f2dc7a'),
+ [CORIO]:trefoil('#5a2a10','#ffa040'),[PFIS]:trefoil('#3a3530','#c8b890'),[RADONIO]:trefoil('#202830','#a0ffd0'),
+ [GRAFITE]:blk('#2b2d31','#8a8d95','C'),[BORO]:blk('#3a3530','#d8c08a','B'),[CHUMBO]:blk('#4a4e58','#c8ccd8','Pb'),[CHUMBOF]:blk('#6a6e78','#e8ecf8','Pb'),
+ [VIDAM]:'<svg viewBox="0 0 32 32"><g fill="#ce60e2"><rect x="12" y="5" width="7" height="7"/><rect x="19" y="12" width="7" height="7"/><rect x="5" y="19" width="7" height="7"/><rect x="12" y="19" width="7" height="7"/><rect x="19" y="19" width="7" height="7"/></g></svg>'});
+Object.assign(SUB,{[U235]:'físsil',[PU239]:'físsil',[UNAT]:'0,7% ²³⁵U',[AMBE]:'fonte n',[RADIO]:'α γ',[COBALTO]:'γ forte',[CESIO]:'β γ solúvel',
+ [CORIO]:'lava nuclear',[PFIS]:'precipitação',[RADONIO]:'gás α',[GRAFITE]:'moderador',[BORO]:'absorve n',[CHUMBO]:'blinda γ',[VIDAM]:'B36/S23'});
+Object.assign(DESC,{
+ [U235]:'urânio altamente enriquecido · ρ 19 050 · físsil: nêutron → fissão (~200 MeV, 2,4 nêutrons) · massa crítica nua ~R6 células; menos com refletor/compressão · funde 1132 °C → cório',
+ [PU239]:'plutônio · ρ 19 800 · mais físsil que U-235 (2,9 n/fissão) e emite nêutrons espontâneos · massa crítica ~R4,5 · núcleo de bomba de implosão',
+ [UNAT]:'urânio natural (0,7% U-235) · não sustenta cadeia rápida; com moderador (grafite/água) quase crítico · ótimo refletor/tamper denso',
+ [AMBE]:'fonte de nêutrons amerício-berílio (α + Be → n) · iniciador: esmagada por implosão solta rajada de nêutrons',
+ [RADIO]:'rádio-226 · emissor α (parado por papel/pele) + γ fraco · brilha · emana radônio',
+ [COBALTO]:'cobalto-60 · γ forte 1,2 MeV · atravessa metros de ar; blindar com chumbo/concreto/água',
+ [CESIO]:'cloreto de césio-137 · β + γ 0,66 MeV · pó solúvel: contamina água e se espalha (Goiânia 1987)',
+ [CORIO]:'combustível derretido (~2500 °C) · altamente radioativo · ainda fissiona com moderador · solidifica em resíduo',
+ [PFIS]:'produtos de fissão / precipitação radioativa · β γ · decai com o tempo',
+ [RADONIO]:'radônio-222 · gás nobre pesado α · acumula em porões fechados · meia-vida curta',
+ [GRAFITE]:'carbono puro · modera nêutrons (rápido → térmico) sem absorver · queima a ~750 °C',
+ [BORO]:'boro-10 · absorve nêutrons térmicos (barra de controle)',
+ [CHUMBO]:'ρ 11 340 · melhor blindagem γ por espessura · funde 327 °C',
+ [VIDAM]:'vida mutante (radiação) · regra HighLife B36/S23 (nasce com 3 ou 6 vizinhos)'});
 // ================= paleta de materiais (abas + busca) e trilho de ferramentas =================
 const MODES=[
  ['free','Pincel redondo','arrastar para desenhar (B)','<circle cx="12" cy="12" r="7"/>'],
@@ -1024,7 +1094,7 @@ addEventListener('keydown',e=>{
   if(k==='p'){screenshot();return;}
   const MK={b:'free',l:'line',r:'rect',e:'ell',g:'fill'};if(MK[k]){setMode(MK[k]);return;}
   if(e.code==='Space'){e.preventDefault();togglePause();}
-  if(e.key>='1'&&e.key<='6')setView(+e.key-1);
+  if(e.key>='1'&&e.key<='8')setView(+e.key-1);
   if(e.key==='/'){e.preventDefault();searchEl.focus();searchEl.select();}
   if(e.key==='['||e.key===']'){brushEl0.value=+brushEl0.value+(e.key===']'?1:-1);brushEl0.oninput();}
   if(e.key==='+'||e.key==='=')zoomBy(1.5);
@@ -1037,14 +1107,16 @@ addEventListener('keyup',e=>{if(e.key==='Shift'){shiftKey=false;constrainShape()
 
 // legenda
 const lgGrad=document.getElementById('lgGrad'),lgLo=document.getElementById('lgLo'),lgHi=document.getElementById('lgHi'),lgView=document.getElementById('lgView');
-const VIEWN=['material','pressão manom.','temperatura','potencial','|B|','fluxo de ar'];
+const VIEWN=['material','pressão manom.','temperatura','potencial','|B|','fluxo de ar','taxa de dose'];VIEWN[7]='gravidade'; // GVIEW (grav.js)
 const css=c=>'rgb('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+')';
 function updateLegend(){
   lgView.textContent=VIEWN[view];
+  if(view===GVIEW){gravLegend();return;}
   if(view===1){lgGrad.style.background='linear-gradient(90deg,'+PST.map(s=>css(s[1])+' '+s[0]*100+'%').join(',')+')';lgLo.textContent='0 kPa';lgHi.textContent='+'+fmtP(pRange);}
   else if(view===2){const lo=0,hi=1500;lgGrad.style.background='linear-gradient(90deg,'+TST.filter(s=>s[0]<=hi).map(s=>css(s[1])+' '+(s[0]-lo)/(hi-lo)*100+'%').join(',')+')';lgLo.textContent='−273 °C';lgHi.textContent='1227 °C';}
   else if(view===3){lgGrad.style.background='linear-gradient(90deg,rgb(40,124,255),rgb(14,17,24) 50%,rgb(255,78,40))';lgLo.textContent='−'+fmtV(vScale);lgHi.textContent='+'+fmtV(vScale)+' · amarelo = corrente';}
   else if(view===4){lgGrad.style.background='linear-gradient(90deg,'+MST.map(s=>css(s[1])+' '+s[0]*100+'%').join(',')+')';lgLo.textContent='10 µT';lgHi.textContent='1 T · ⊙ sai ⊗ entra';}
+  else if(view===6){lgGrad.style.background='linear-gradient(90deg,'+RST.map(s=>css(s[1])+' '+s[0]*100+'%').join(',')+')';lgLo.textContent='0,1 µSv/h';lgHi.textContent='10 kSv/h · pontos = nêutrons';}
   else if(view===5){lgGrad.style.background='linear-gradient(90deg,rgb(60,130,255),rgb(14,17,24) 50%,rgb(255,70,50))';lgLo.textContent='−'+fmtP(airRange);lgHi.textContent=(airOn?'+'+fmtP(airRange)+' · linhas = vento':'ar desativado');}
   else{lgGrad.style.background='linear-gradient(90deg,#000,'+GST.map(s=>css(s[1])).join(',')+')';lgLo.textContent='brilho térmico';lgHi.textContent='>2000 °C';}
 }
@@ -1156,17 +1228,19 @@ function updReadout(){
   }
   if(magLive) h+=kv('|B|',fmtB(Bfine[i]));
   if(m===IMA) h+=kv('M',mxA[i]||myA[i]?si(Math.hypot(mxA[i],myA[i]),'A/m')+' '+(myA[i]<0?'↑':myA[i]>0?'↓':mxA[i]>0?'→':'←'):'desmagnetizado');
+  h+=gravReadout(i);
+  h+=radReadout(i,m);
   h+=kv('posição',(x*DX).toFixed(1)+' m · prof. '+(y*DX).toFixed(1)+' m');
   readout.innerHTML=h+'</div>';
 }
 
 
 // ================= histórico (desfazer/refazer) =================
-const snapArrs=()=>({mat,shade,life,T,tOld,pp,gd,lat,st,P,chg,ion,mxA,myA,Vf,ionL}); // P é trocado com Pn → pegar referência atual
+const snapArrs=()=>({mat,shade,life,T,tOld,pp,gd,lat,st,P,chg,ion,mxA,myA,Vf,ionL,rA,bu,dAcc}); // P é trocado com Pn → pegar referência atual
 const UNDO_MAX=20,undoS=[],redoS=[];
-function snapshot(){const o={lid,storm},a=snapArrs();for(const k in a)o[k]=a[k].slice();return o;}
+function snapshot(){const o={lid,storm,grav:gravGet()},a=snapArrs();for(const k in a)o[k]=a[k].slice();return o;}
 function restore(sn){const a=snapArrs();for(const k in a)a[k].set(sn[k]);
-  lid=sn.lid;updLidBtn();setStorm(sn.storm);IxC.fill(0);IyC.fill(0);airReset();updHist();}
+  lid=sn.lid;updLidBtn();setStorm(sn.storm);gravSet(sn.grav);IxC.fill(0);IyC.fill(0);airReset();radReset();updHist();}
 function pushUndo(){undoS.push(snapshot());if(undoS.length>UNDO_MAX)undoS.shift();redoS.length=0;updHist();}
 function undo(){if(!undoS.length)return;redoS.push(snapshot());restore(undoS.pop());}
 function redo(){if(!redoS.length)return;undoS.push(snapshot());restore(redoS.pop());}
@@ -1182,7 +1256,7 @@ async function saveScene(){
   const a=snapArrs(),meta=[],bufs=[];
   for(const k in a){meta.push([k,a[k].constructor.name,a[k].length]);bufs.push(a[k]);}
   const set={};for(const id of SLIDERS)set[id]=+document.getElementById(id).value;
-  const hdr=new TextEncoder().encode(JSON.stringify({app:'camara',v:1,W,H,lid,storm,magDir,view,set,meta,air:airOn,blast:blastOn}));
+  const hdr=new TextEncoder().encode(JSON.stringify({app:'camara',v:1,W,H,lid,storm,magDir,view,set,meta,air:airOn,blast:blastOn,grav:gravGet()}));
   const raw=new Blob([new Uint32Array([hdr.length]),hdr,...bufs]);
   const gz=await new Response(raw.stream().pipeThrough(new CompressionStream('gzip'))).blob();
   download(gz,'camara-'+stampName()+'.camara');
@@ -1199,7 +1273,7 @@ async function loadScene(file){
       a[k].set(new C(buf.slice(off,off+nb)));off+=nb;}
     for(let i=0;i<N;i++)if(mat[i]>=NM)mat[i]=AR;
     for(const id in h.set){const el=document.getElementById(id);if(el){el.value=h.set[id];el.oninput();}}
-    lid=!!h.lid;updLidBtn();setStorm(!!h.storm);setView(h.view|0);setAir(h.air!==false);setBlast(h.blast!==false);airReset();
+    lid=!!h.lid;updLidBtn();setStorm(!!h.storm);setView(h.view|0);setAir(h.air!==false);setBlast(h.blast!==false);airReset();radReset();gravSet(h.grav);
     magDir=h.magDir|0;poleEl.querySelectorAll('button').forEach(x=>x.classList.toggle('on',+x.dataset.d===magDir));
     zoomTo(1,0,0);toast('Cenário carregado: '+file.name);
   }catch(err){toast('Falha ao carregar: '+err.message,true);}
@@ -1223,7 +1297,7 @@ function stepOnce(){if(!paused)togglePause();simStep();magStep();}
 document.getElementById('bStep').onclick=stepOnce;
 applyZoom();
 // loop
-function simStep(){moveStep();flyStep();airStep();pressureStep();heatStep();stateStep();explodeStep();lifeStep();if(storm)weatherStep();elecStep();}
+function simStep(){gravStep();moveStep();flyStep();airStep();pressureStep();heatStep();stateStep();explodeStep();lifeStep();radStep();if(storm)weatherStep();elecStep();}
 let last=performance.now(),fps=60,frameN=0,simMs=0;
 function loop(now){
   const dt=now-last;last=now;fps+=(1000/Math.max(dt,1)-fps)*.05;
@@ -1238,7 +1312,7 @@ function loop(now){
   if((frameN++&7)===0){
     updReadout();
     if(view===1) lgHi.textContent='+'+fmtP(pRange);
-    statsEl.innerHTML='<span><b>'+fps.toFixed(0)+'</b> fps</span><span>sim <b>'+simMs.toFixed(1)+'</b> ms</span><span><b>'+cntP+'</b> partículas</span><span>Pmáx <b>+'+fmtP(maxG)+'</b></span><span>Tmáx <b>'+(cntP?(maxT-273.15).toFixed(0):'—')+'</b> °C</span>'+(elecLive?'<span>Vmáx <b>'+fmtV(vScale)+'</b></span><span>Imáx <b>'+fmtI(iMax)+'</b></span>':'')+(nStrikes?'<span>descargas <b>'+nStrikes+'</b></span>':'')+(magLive?'<span>Bmáx <b>'+fmtB(bMax)+'</b></span>':'');
+    statsEl.innerHTML='<span><b>'+fps.toFixed(0)+'</b> fps</span><span>sim <b>'+simMs.toFixed(1)+'</b> ms</span><span><b>'+cntP+'</b> partículas</span><span>Pmáx <b>+'+fmtP(maxG)+'</b></span><span>Tmáx <b>'+(cntP?(maxT-273.15).toFixed(0):'—')+'</b> °C</span>'+(elecLive?'<span>Vmáx <b>'+fmtV(vScale)+'</b></span><span>Imáx <b>'+fmtI(iMax)+'</b></span>':'')+(nStrikes?'<span>descargas <b>'+nStrikes+'</b></span>':'')+(magLive?'<span>Bmáx <b>'+fmtB(bMax)+'</b></span>':'')+radStats();
     if(view===3||view===4) updateLegend();
   }
   requestAnimationFrame(loop);
