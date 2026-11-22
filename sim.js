@@ -143,7 +143,7 @@ function si(v,u,d){const a=Math.abs(v);if(a===0)return '0 '+u;
 const fmtV=v=>si(v,'V'),fmtQ=v=>si(v,'C'),fmtI=v=>si(v,'A'),fmtB=v=>si(v,'T'),fmtE=v=>si(v,'V/m');
 const fmtS=s=>s===0?'0':s.toExponential(1).replace('e+','·10^').replace('e-','·10^-');
 const q=new Int32Array(N);
-let stamp=1,gm=1,heaterT=773.15,power=4,lid=false,paused=false,steps=2,view=1;
+let stamp=1,gm=1,heaterT=773.15,power=4,lid=false,paused=false,steps=2,view=0;
 
 let seed=0x2545F491;
 function rnd(){seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;return (seed>>>0)/4294967296;}
