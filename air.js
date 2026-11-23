@@ -75,14 +75,17 @@ function airStep(){
         avy[c]=v>AV_MAX?AV_MAX:v<-AV_MAX?-AV_MAX:v;} else avy[c]=0;
     }}
   // 3) advecção semi-lagrangiana da velocidade (termo (u·∇)u: vórtices e jatos se transportam)
+  // deslocamento limitado a ½ célula: com |u|>½ o ponto de partida cai quase todo na face vizinha; num modo xadrez
+  // (sinais alternados) a interpolação invertia o sinal (0,4·u − 0,6·u) → saída virava entrada e a célula se comprimia
+  // sozinha até AP_MAX (pontos de ~17 atm presos após explosões)
   for(let cy=0;cy<AH;cy++){const row=cy*AW;
     for(let cx=0;cx<AW;cx++){const c=row+cx;
       let u=avx[c];
       if(u!==0){const v=.25*(avy[c]+(cx<AW-1?avy[c+1]:0)+(cy>0?avy[c-AW]+(cx<AW-1?avy[c-AW+1]:0):0));
-        tvx[c]=(u<1e-3&&u>-1e-3&&v<1e-3&&v>-1e-3)?u:bil(avx,cx-u,cy-v);} else tvx[c]=0;
+        tvx[c]=(u<1e-3&&u>-1e-3&&v<1e-3&&v>-1e-3)?u:bil(avx,cx-(u>.5?.5:u<-.5?-.5:u),cy-(v>.5?.5:v<-.5?-.5:v));} else tvx[c]=0;
       const v=avy[c];
       if(v!==0){const u2=.25*(avx[c]+(cx>0?avx[c-1]:0)+(cy<AH-1?avx[c+AW]+(cx>0?avx[c+AW-1]:0):0));
-        tvy[c]=(v<1e-3&&v>-1e-3&&u2<1e-3&&u2>-1e-3)?v:bil(avy,cx-u2,cy-v);} else tvy[c]=0;
+        tvy[c]=(v<1e-3&&v>-1e-3&&u2<1e-3&&u2>-1e-3)?v:bil(avy,cx-(u2>.5?.5:u2<-.5?-.5:u2),cy-(v>.5?.5:v<-.5?-.5:v));} else tvy[c]=0;
     }}
   for(let c=0;c<AN;c++){avx[c]=aBlk[c]?0:tvx[c];avy[c]=aBlk[c]?0:tvy[c];}
   // 4) continuidade: p' −= γP₀·∇·u (compressão isentrópica); viscosidade artificial leve
