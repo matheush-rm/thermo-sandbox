@@ -274,6 +274,11 @@ function flyStep(){
         fx+=sx;fy+=sy;const j=((fy|0)*W)+(fx|0);
         if(j===i) continue;
         if(fx<1||fx>=W-1||fy<1||fy>=H-1||kind[mat[j]]!==GAS||mv[j]===stamp){
+          if(gLoc[i]&&gTa[i]>1e-4){ // gravidade local (grav.js): "chão" e "acima" relativos a g, não ao eixo y
+            const a=gTa[i],ux=gTx[i]/a,uy=gTy[i]/a,vp=vx*ux+vy*uy,vq=vx*uy-vy*ux,o=gO[i],jg=i+GDIR[o],ju=i-GDIR[o];
+            if(vp>=0&&kind[mat[jg]]!==GAS){pvx[i]=0;pvy[i]=0;break;} // pousou: escorrega/espalha em gravMove
+            if((vq<0?-vq:vq)>(vp<0?-vp:vp)&&ju>=W&&ju<N-W&&kind[mat[ju]]===GAS&&mv[ju]!==stamp){swap(i,ju);i=ju;fx=i%W+.5;fy=(i/W|0)+.5;pvx[i]*=.85;pvy[i]*=.85;continue;}
+            pvx[i]*=.45;pvy[i]*=.45;break;}
           // arraste de superfície: bloqueado na horizontal → sobe na diagonal se houver gás (ondas, spray, monte a jusante)
           const ju=j-W;if(fx>=1&&fx<W-1&&fy>=2&&(vx<0?-vx:vx)>(vy<0?-vy:vy)&&kind[mat[ju]]===GAS&&mv[ju]!==stamp){swap(i,ju);i=ju;fy-=1;pvx[i]*=.85;continue;}
           pvx[i]*=.45;pvy[i]=pvy[i]>0&&(fy|0)!==y?-pvy[i]*.45:pvy[i]*.3;break;} // ricocheteia no chão

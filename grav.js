@@ -21,7 +21,7 @@ const GN=6.674e-11,CLUZ=2.998e8,HBAR=1.0546e-34,KB=1.380649e-23,GSOFT2=(.5*DX)*(
   GM0=1e9,GMMAX=2e27,GRATE=1.07,GMAXS=8,BH_RS=.5,GW_LOSS=.05,BH_SINK=.08*PATM;
 const gS=[]; // fontes {x,y (células, contínuo), M (kg), bh, abs (kg absorvidos)}
 const gTx=new Float32Array(N),gTy=new Float32Array(N),gTa=new Float32Array(N),gFr=new Float32Array(N),gO=new Uint8Array(N),gLoc=new Uint8Array(N),
-  gfx=new Float32Array(N),gfy=new Float32Array(N),gHx=new Float32Array(N),gHy=new Float32Array(N),gTid=new Float32Array(N),gPhi=new Float32Array(N),
+  gfx=new Float32Array(N),gfy=new Float32Array(N),gHp=new Float32Array(N),gTid=new Float32Array(N),gPhi=new Float32Array(N),
   gCx=new Float32Array(AN),gCy=new Float32Array(AN);
 const GDIR=[1,1+W,W,W-1,-1,-1-W,-W,1-W]; // octantes (y para baixo): 0 →, 2 ↓, 4 ←, 6 ↑
 let gAny=false,gBH=false,gDirty=false,gLastGm=-1,gTidMax=0,gVer=0;
@@ -37,20 +37,21 @@ function gravSet(a){gS.length=0;if(Array.isArray(a))for(const s of a)if(s&&isFin
 function gravField(){
   gDirty=false;gLastGm=gm;gVer++;gAny=gS.length>0;gBH=false;
   for(const s of gS){s.bh=rsOf(s.M)/DX>=BH_RS;if(s.bh)gBH=true;}
-  if(!gAny){gLoc.fill(0);gfx.fill(0);gfy.fill(0);gHx.fill(0);gHy.fill(0);gTid.fill(0);gPhi.fill(0);gCx.fill(0);gCy.fill(0);gTidMax=0;return;}
+  if(!gAny){gLoc.fill(0);gfx.fill(0);gfy.fill(0);gHp.fill(0);gTid.fill(0);gPhi.fill(0);gCx.fill(0);gCy.fill(0);gTidMax=0;return;}
   const gu=gm*G0,thr=.02*G0*Math.max(gm,.1),ns=gS.length,SX=new Float64Array(ns),SY=new Float64Array(ns),SM=new Float64Array(ns);
   for(let s=0;s<ns;s++){SX[s]=gS[s].x;SY[s]=gS[s].y;SM[s]=GN*gS[s].M;}
   let tm=0;
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x;
-    let ax=0,ay=0,td=0,ph=0;
+    let ax=0,ay=0,td=0,ph=0,hp=0;
     for(let s=0;s<ns;s++){const dx=(SX[s]-x-.5)*DX,dy=(SY[s]-y-.5)*DX,r2=dx*dx+dy*dy+GSOFT2,r=Math.sqrt(r2),a=SM[s]/r2;
-      ax+=a*dx/r;ay+=a*dy/r;td+=2*SM[s]/(r2*r);ph-=SM[s]/r;}
+      ax+=a*dx/r;ay+=a*dy/r;td+=2*SM[s]/(r2*r);ph-=SM[s]/r;
+      const rc=Math.sqrt(SM[s]/GH_MAX);hp-=r<rc?SM[s]/rc+GH_MAX*(rc-r):SM[s]/r;} // potencial da hidrostática: |∇φ| limitado a GH_MAX
     const tx=ax,ty=ay+gu,ta=Math.hypot(tx,ty),as=Math.hypot(ax,ay);
     gTx[i]=tx;gTy[i]=ty;gTa[i]=ta;gTid[i]=td;gPhi[i]=ph;if(td>tm)tm=td;
     gLoc[i]=as>thr?1:0;
     let ang=Math.atan2(ty,tx)/(Math.PI/4);if(ang<0)ang+=8;const o=Math.floor(ang);gO[i]=o&7;gFr[i]=ang-o;
     let fx=.04*ax/G0,fy=.04*ay/G0;fx=fx>FLY_MAX?FLY_MAX:fx<-FLY_MAX?-FLY_MAX:fx;fy=fy>FLY_MAX?FLY_MAX:fy<-FLY_MAX?-FLY_MAX:fy;gfx[i]=fx;gfy[i]=fy;
-    const ch=as>GH_MAX?GH_MAX/as:1;gHx[i]=.5*DX*ax*ch;gHy[i]=.5*DX*ay*ch;
+    gHp[i]=.5*hp; // BFS: ΔP = ρ̄·(φ_i − φ_j), exato e independente do caminho (g de célula/ponto médio dava ∮ρg·dl ≠ 0 → ±10⁵ Pa perto da massa)
     if(!(x&1)&&!(y&1)){const c=(y>>1)*AW+(x>>1);let cx=ax/G0,cy=ay/G0;const cm=Math.hypot(cx,cy);if(cm>GAIR_MAX){cx*=GAIR_MAX/cm;cy*=GAIR_MAX/cm;}gCx[c]=cx;gCy[c]=cy;}
   }
   gTidMax=tm;

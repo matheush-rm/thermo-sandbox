@@ -258,7 +258,7 @@ function moveStep(){
         }
         if(done) continue;
       }
-      if(k===LIQ&&rnd()<mobOf(i,m)){
+      if(k===LIQ&&gOn&&rnd()<mobOf(i,m)){ // sem peso: líquido não escorre
         const dis=dispA[m]; let last=-1;
         for(let s=1;s<=dis;s++){
           const jj=i+d*s,mm=mat[jj],kk=kind[mm];
@@ -316,15 +316,24 @@ function pressureStep(){
   }
   const t=P;P=Pn;Pn=t;
 }
+// Gravidade local via diferença de potencial gHp (grav.js). Fila dupla: no campo de uma massa (gLoc), gás e matéria em voo vão
+// antes do resto — o ar recebe P por caminhos de ar; com BFS simples o ar ao lado de uma gota fora do equilíbrio herdava a P de
+// um caminho por dentro da água (faixas de ±10⁵ Pa) → empuxo/vento espúrio. Sem massa a fila leve fica vazia: BFS original.
+// ⚠️ Assumido: perto da massa, sólido/pó encostado lateralmente no ar recebe a P do ar (sem o peso da pilha acima).
+const qL=new Int32Array(N),qD=new Int32Array(N);
 function bfs(qh,qt,mark,hg){
-  while(qh<qt){
-    const i=q[qh++],pi=Pn[i],ri=rhoA[i],x=i%W;
-    let j=i+W;
-    if(j<N&&vis[j]===0){vis[j]=mark;Pn[j]=pi+(hg+gHy[i])*(ri+rhoA[j]);q[qt++]=j;}
-    j=i-W;
-    if(j>=0&&vis[j]===0){vis[j]=mark;Pn[j]=pi-(hg+gHy[i])*(ri+rhoA[j]);q[qt++]=j;}
-    if(x>0){j=i-1;if(vis[j]===0){vis[j]=mark;Pn[j]=pi-gHx[i]*(ri+rhoA[j]);q[qt++]=j;}}
-    if(x<W-1){j=i+1;if(vis[j]===0){vis[j]=mark;Pn[j]=pi+gHx[i]*(ri+rhoA[j]);q[qt++]=j;}}
+  let lh=0,lt=0,dh=0,dt=0;
+  for(let a=qh;a<qt;a++){const i=q[a];if(gLoc[i]&&(rhoA[i]===0||kind[mat[i]]===GAS))qL[lt++]=i;else qD[dt++]=i;}
+  while(lh<lt||dh<dt){
+    const i=lh<lt?qL[lh++]:qD[dh++],pi=Pn[i],gi=gHp[i],ri=rhoA[i],x=i%W;
+    for(let d=0;d<4;d++){
+      let j,h=0;
+      if(d===0){j=i+W;if(j>=N)continue;h=hg;}else if(d===1){j=i-W;if(j<0)continue;h=-hg;}
+      else if(d===2){if(x===0)continue;j=i-1;}else{if(x===W-1)continue;j=i+1;}
+      if(vis[j]!==0)continue;
+      vis[j]=mark;const rj=rhoA[j];Pn[j]=pi+(h+gi-gHp[j])*(ri+rj);q[qt++]=j; // ΔP = ρ̄·Δφ (2ρ̄ = ri+rj; gHp = φ/2)
+      if(gLoc[j]&&(rj===0||kind[mat[j]]===GAS))qL[lt++]=j;else qD[dt++]=j;
+    }
   }
   return qt;
 }
