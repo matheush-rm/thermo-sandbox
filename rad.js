@@ -86,15 +86,21 @@ function fission(j,w,fast){
   for(let k=0;k<c;k++) nSpawn(x+rnd(),y+rnd(),w,1);
   if(bu[j]>BUMAX){mat[j]=PFIS;lat[j]=0;life[j]=0;rA[j]=Math.max(rA[j],PFIS_RA);} // combustível queimado → produtos de fissão
 }
+// passo (x0,y0)→(x1,y1) de ≤1 célula: bloqueado se cai em parede ou corta quina diagonal entre duas paredes
+function wallHit(x0,y0,x1,y1){
+  const a=x0|0,b=y0|0,c=x1|0,d=y1|0;
+  if(isWall(mat[d*W+c])) return true;
+  return a!==c&&b!==d&&isWall(mat[b*W+c])&&isWall(mat[d*W+a]);
+}
 function neutronStep(){
   for(let n=nCnt-1;n>=0;n--){
     let x=nX[n],y=nY[n],ux=nUX[n],uy=nUY[n],w=nW[n],f=nFast[n],dead=false;
     const sub=f?12:2; // rápido ≫ térmico; geração de nêutrons ≪ tempo mecânico
     for(let s=0;s<sub;s++){
-      x+=ux;y+=uy;
+      const px=x,py=y;x+=ux;y+=uy;
       if(x<1||y<1||x>=W-1||y>=H-1){dead=true;break;}
+      if(wallHit(px,py,x,y)){dead=true;break;}
       const j=(y|0)*W+(x|0),m=mat[j];
-      if(m===PAREDE){dead=true;break;}
       radAcc[j]+=NDOSE*w;
       if(!NI[m]) continue;
       const c=1+cmp[j];let r=rnd();
@@ -111,8 +117,9 @@ function castRay(i,a,w,t){
   const ux=Math.cos(a),uy=Math.sin(a),s=Math.max(ux<0?-ux:ux,uy<0?-uy:uy),dx=ux/s,dy=uy/s,L=1/s,wmin=w*.003;
   let x=i%W+.5,y=((i/W)|0)+.5;
   for(let q=0;q<300;q++){
-    x+=dx;y+=dy;if(x<1||y<1||x>=W-1||y>=H-1)return;
-    const j=(y|0)*W+(x|0),m=mat[j];if(m===PAREDE)return;
+    const px=x,py=y;x+=dx;y+=dy;if(x<1||y<1||x>=W-1||y>=H-1)return;
+    if(wallHit(px,py,x,y))return;
+    const j=(y|0)*W+(x|0),m=mat[j];
     radAcc[j]+=w*L;
     let mu;
     if(kind[m]===GAS) mu=t?gd[j]*.025:0; else mu=t?MUB[m]:MUG[m];
@@ -189,9 +196,14 @@ function nuke(c){
   lastKt=kt;nNukes++;
   const Wkg=kt*1e6,Rfb=Math.min(60,6+9*Math.cbrt(kt)),Rfb2=Rfb*Rfb; // ⚠️ bola de fogo limitada (real: ~66 m·kt^0,4)
   // bola de fogo: vaporiza tudo (menos as paredes da câmara); parte vira precipitação radioativa
-  for(let y=Math.max(1,cy-Rfb|0);y<=Math.min(H-2,cy+Rfb|0);y++)for(let x=Math.max(1,cx-Rfb|0);x<=Math.min(W-2,cx+Rfb|0);x++){
-    const dx=x-cx,dy=y-cy,d2=dx*dx+dy*dy;if(d2>Rfb2)continue;
-    const i=y*W+x,m=mat[i];if(m===PAREDE)continue;
+  // inundação 4-conexa a partir do centro: paredes contêm a bola de fogo
+  const fbSeen=new Uint8Array(N),fbQ=new Int32Array(N),aHit=new Uint8Array(AN);let qh=0,qt=0;
+  fbQ[qt++]=c;fbSeen[c]=1;
+  while(qh<qt){const i=fbQ[qh++],x=i%W,y=(i/W)|0;
+    for(let n=0;n<4;n++){const j=n===0?i-1:n===1?i+1:n===2?i-W:i+W,jx=j%W,jy=(j/W)|0;
+      if(fbSeen[j]||jx<1||jx>W-2||jy<1||jy>H-2)continue;fbSeen[j]=1;
+      const ex=jx-cx,ey=jy-cy;if(ex*ex+ey*ey>Rfb2||isWall(mat[j]))continue;fbQ[qt++]=j;}
+    const dx=x-cx,dy=y-cy,d2=dx*dx+dy*dy,m=mat[i];aHit[AF[i]]=1;
     const f=1-Math.sqrt(d2)/Rfb,t=3000+6000*f;
     if(FISS[m]||m===PFIS||(kind[m]!==GAS&&rnd()<.12+.3*f)){setCell(i,PFIS,t);rA[i]=PFIS_RA*(2+8*f);}
     else{setCell(i,FOGO,t);life[i]=60+(rnd()*150|0);rA[i]=.3*f;}
@@ -199,13 +211,14 @@ function nuke(c){
   }
   // onda de choque (Mills via explosivos) e sobrepressão no campo de ar
   detonate(c,Wkg);
-  if(airOn){const R=Rfb/AC;for(let y=0;y<AH;y++)for(let x=0;x<AW;x++){const dx=x-cx/AC,dy=y-cy/AC;if(dx*dx+dy*dy<R*R)aInj[y*AW+x]+=AP_MAX*1.5;}}
+  if(airOn)for(let a=0;a<AN;a++)if(aHit[a])aInj[a]+=AP_MAX*1.5;
   // pulso térmico e radiação imediata (γ + nêutrons) em linha de visada; nêutrons ativam o que atingem
   const Rth=Math.min(260,40+60*Math.cbrt(kt));
   for(let a=0;a<1440;a++){const an=a/1440*6.2832,ux=Math.cos(an),uy=Math.sin(an);
     let x=cx+.5,y=cy+.5,wg=2e5,wn=1e4,heat=true;
-    for(let q=0;q<Rth;q++){x+=ux;y+=uy;if(x<1||y<1||x>=W-1||y>=H-1)break;
-      const j=(y|0)*W+(x|0),m=mat[j];if(m===PAREDE)break;
+    for(let q=0;q<Rth;q++){const px=x,py=y;x+=ux;y+=uy;if(x<1||y<1||x>=W-1||y>=H-1)break;
+      if(wallHit(px,py,x,y))break;
+      const j=(y|0)*W+(x|0),m=mat[j];
       const r=q+1,amp=1/r;
       radAcc[j]+=(wg+wn*NDOSE)*amp*.02;
       if(kind[m]!==GAS){

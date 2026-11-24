@@ -281,7 +281,7 @@ function elecStep(){
     const q=chg[i];if(q>QMAX)chg[i]=QMAX;else if(q<-QMAX)chg[i]=-QMAX; // limite de corona: ε0·E_rup·área
     if(ion[i]>0&&!grow){const v=ion[i]*f;ion[i]=v<1e-3?0:v;}
     const t=T[i],mi=mat[i];if(t>1500&&kind[mi]===GAS)T[i]=t-(t-1500)*.3; // resfriamento radiativo/expansão do canal
-    else if(t>VAPT&&kind[mi]!==GAS&&!fixV[i]&&mi!==PAREDE){convert(i,mi===AGUA||mi===SALMOURA?VAPOR:FUMACA);mxA[i]=0;myA[i]=0;} // vaporização explosiva (⚠️ vapor do material ≈ fumaça)
+    else if(t>VAPT&&kind[mi]!==GAS&&!fixV[i]&&!isWall(mi)){convert(i,mi===AGUA||mi===SALMOURA?VAPOR:FUMACA);mxA[i]=0;myA[i]=0;} // vaporização explosiva (⚠️ vapor do material ≈ fumaça)
     if(dom[i]){const a=Vf[i]<0?-Vf[i]:Vf[i];if(a>vm)vm=a;const c=(IxC[i]<0?-IxC[i]:IxC[i])+(IyC[i]<0?-IyC[i]:IyC[i]);if(c>im)im=c;}
   }
   if(!(vm<1e10)){Vf.fill(0);chg.fill(0);vm=0;im=0;console.warn('solver elétrico reiniciado');} // proteção numérica
@@ -570,9 +570,9 @@ function drawOverlay(fn){
   }else ppl.fill(0);
   // brilho do plasma
   if(plasmaN){oc.globalCompositeOperation='lighter';
-    for(let k=0;k<plasmaN;k++){const i=plasmaL[k],x=i%W,y=i/W|0,io=Math.min(1,ionL[i]);
-      oc.fillStyle='rgba(120,130,255,'+(.10*io).toFixed(3)+')';oc.fillRect((x-2)*sx,(y-2)*sy,5*sx,5*sy);
-      oc.fillStyle='rgba(255,255,255,'+(.55*io).toFixed(3)+')';oc.fillRect(x*sx,y*sy,sx,sy);}
+    for(let k=0;k<plasmaN;k++){const i=plasmaL[k],x=i%W,y=i/W|0,ne=mat[i]===NEON,io=ne?Math.max(.6,Math.min(1,ionL[i])):Math.min(1,ionL[i]);
+      oc.fillStyle=(ne?'rgba(255,70,25,':'rgba(120,130,255,')+((ne?.16:.10)*io).toFixed(3)+')';oc.fillRect((x-2)*sx,(y-2)*sy,5*sx,5*sy);
+      oc.fillStyle=(ne?'rgba(255,150,90,':'rgba(255,255,255,')+(.55*io).toFixed(3)+')';oc.fillRect(x*sx,y*sy,sx,sy);}
     oc.globalCompositeOperation='source-over';}
   // clarão (energia dissipada em plasma neste quadro)
   if(ePl>2e3){const f=Math.min(1,.25+Math.log10(ePl/2e3)*.25);if(f>flash)flash=f;if(strikeCD<=0&&f>.3){nStrikes++;strikeCD=15;}}

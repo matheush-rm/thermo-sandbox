@@ -173,12 +173,15 @@ function airStep(){
 // ================= ferramentas de ar =================
 // Vento: arrastar empurra o ar na direção do gesto. Ciclone: vórtice de Rankine (anti-horário; Shift = horário).
 // Vento = jato sustentado (ventilador): enquanto o botão está pressionado, relaxa o ar do pincel para
-// a velocidade-alvo na direção do último arrasto (|alvo| cresce com a rapidez do gesto, até a força máx.)
-let windDX=0,windDY=0;
-function airWindDir(dx,dy){windDX=windDX*.6+dx*.4;windDY=windDY*.6+dy*.4;}
+// a velocidade-alvo na direção do último arrasto (|alvo| = pico da rapidez do gesto no traço, até a força máx.).
+// Direção = média de vetores unitários; eventos sem deslocamento (mouse parado/tremendo na mesma célula) não
+// a alteram nem enfraquecem → segurar parado mantém o jato na direção do arrasto.
+let windDX=0,windDY=0,windS=0;
+function airWindDir(dx,dy){const d=Math.hypot(dx,dy);if(d<1e-6)return;
+  windDX=windDX*.6+dx/d*.4;windDY=windDY*.6+dy/d*.4;if(d>windS)windS=d;}
 function airWind(x,y){
   const d=Math.hypot(windDX,windDY); if(!airOn||d<.05) return;
-  const WM=windF/343*C_AIR,sp=WM*Math.min(1,.35+d/3),tu=windDX/d*sp,tv=windDY/d*sp;
+  const WM=windF/343*C_AIR,sp=WM*Math.min(1,.35+windS/3),tu=windDX/d*sp,tv=windDY/d*sp;
   const R=Math.max(1.5,(brush+2)/AC),X=(x+.5)/AC,Y=(y+.5)/AC;
   const x0=Math.max(0,X-R|0),x1=Math.min(AW-1,X+R+1|0),y0=Math.max(0,Y-R|0),y1=Math.min(AH-1,Y+R+1|0);
   for(let cy=y0;cy<=y1;cy++)for(let cx=x0;cx<=x1;cx++){const c=cy*AW+cx;if(aBlk[c])continue;

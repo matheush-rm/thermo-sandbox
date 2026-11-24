@@ -7,8 +7,9 @@ const AR=0,PAREDE=1,AGUA=2,SALMOURA=3,OLEO=4,MERCURIO=5,MEL=6,ALCOOL=7,LAVA=8,N2
   GELO=22,HGS=23,AREIA=24,SAL=25,CACOS=26,ENTULHO=27,SUCATA=28,CINZA=29,VAPOR=30,VALC=31,N2G=32,VHG=33,
   FUMACA=34,FOGO=35,HELIO=36,COBRE=37,COBREF=38,NICROMO=39,IMA=40,LIMALHA=41,FERROFL=42,FONTEP=43,FONTEN=44,
   TERRA=45,NUVEM=46,GRANIZO=47,VIDA=48,C4=49,NITRO=50,HNO3=51,
-  U235=52,PU239=53,UNAT=54,CORIO=55,PFIS=56,RADIO=57,RADONIO=58,COBALTO=59,CESIO=60,CHUMBO=61,CHUMBOF=62,GRAFITE=63,BORO=64,AMBE=65,VIDAM=66,NM=67;
+  U235=52,PU239=53,UNAT=54,CORIO=55,PFIS=56,RADIO=57,RADONIO=58,COBALTO=59,CESIO=60,CHUMBO=61,CHUMBOF=62,GRAFITE=63,BORO=64,AMBE=65,VIDAM=66,NEON=67,BEDROCK=68,NM=69;
 const ERASE=100,HEAT=101,COOL=102,CHGP=103,CHGN=104,FLIP=105,SPARK=106,WIND=107,CYCL=108;
+const isWall=m=>m===PAREDE||m===BEDROCK; // indestrutíveis: nada atravessa; bedrock só sai com a borracha
 const GRAVT=120; // ferramenta Gravidade (grav.js)
 const CONT={[GRAVT]:1,[HEAT]:1,[COOL]:1,[CHGP]:1,[CHGN]:1,[SPARK]:1,[CYCL]:1}; // ferramentas aplicadas continuamente
 
@@ -16,6 +17,7 @@ const CONT={[GRAVT]:1,[HEAT]:1,[COOL]:1,[CHGP]:1,[CHGN]:1,[SPARK]:1,[CYCL]:1}; /
 const D=[];
 D[AR]       ={n:'Ar',kind:GAS,M:.029,gam:1.4,cpg:1005,k:.026,col:[14,17,24]};
 D[PAREDE]   ={n:'Parede',kind:FIX,rho:7850,k:.05,C:3,col:[44,48,58]};
+D[BEDROCK]  ={n:'Bedrock',kind:FIX,rho:7850,k:1e-9,C:3,col:[58,56,60],var:34};
 D[AGUA]     ={n:'Água',kind:LIQ,rho:1000,k:.6,C:4.18,beta:2.1e-4,kap:4.6e-10,mob:1,disp:5,col:[38,104,214],var:8,hi:[2,373.15,40660,VAPOR,540,647],lo:[3,273.15,-7.4e-8,GELO,80]};
 D[SALMOURA] ={n:'Água salgada',kind:LIQ,rho:1100,k:.58,C:3.9,beta:3e-4,kap:4e-10,mob:.95,disp:5,col:[44,140,165],var:8,hi:[2,381.5,40660,VAPOR,560,650],lo:[1,252,0,GELO,80]};
 D[OLEO]     ={n:'Óleo',kind:LIQ,rho:920,k:.17,C:1.7,beta:7e-4,kap:6e-10,mob:.45,disp:3,col:[196,150,30],var:10,ign:600,fl:60,fsp:.25};
@@ -51,6 +53,7 @@ D[VHG]      ={n:'Vapor de mercúrio',kind:GAS,M:.2006,gam:1.67,cpg:104,k:.008,co
 D[FUMACA]   ={n:'Fumaça',kind:GAS,M:.029,gam:1.4,cpg:1005,k:.026,col:[80,80,84],a:.6};
 D[FOGO]     ={n:'Fogo',kind:GAS,M:.029,gam:1.4,cpg:1005,k:.06,col:[255,130,30],a:1,T0:1300};
 D[HELIO]    ={n:'Hélio',kind:GAS,M:.004,gam:1.67,cpg:5193,k:.15,col:[235,170,215],a:.3};
+D[NEON]     ={n:'Neônio',kind:GAS,M:.0202,gam:1.67,cpg:1030,k:.049,col:[230,150,120],a:.22};
 D[COBRE]    ={n:'Cobre',kind:FIX,rho:8960,k:400,C:3.45,col:[196,112,62],var:10,hi:[1,1358,0,COBREF,530]};
 D[COBREF]   ={n:'Cobre fundido',kind:LIQ,rho:8000,k:160,C:4.2,beta:1e-4,kap:2e-11,mob:.8,disp:2,col:[255,150,90],var:10,lo:[1,1358,0,COBRE,530],T0:1450};
 D[NICROMO]  ={n:'Nicromo',kind:FIX,rho:8400,k:11.3,C:3.8,col:[126,116,104],var:6,hi:[1,1673,0,ACOF,300]};
@@ -86,12 +89,12 @@ D[VIDAM]    ={n:'Vida mutante (B36/S23)',kind:FIX,rho:1050,k:.5,C:3.6,str:400e3,
 
 // elétrico: [σ condutividade S/m, εr permissividade relativa, rigidez dielétrica MV/m (0 = não rompe)]
 const EL={
- [AR]:[3e-15,1,3],[PAREDE]:[0,1,0],[AGUA]:[5e-3,80,0],[SALMOURA]:[5,75,0],[OLEO]:[1e-12,2.2,15],[MERCURIO]:[1.04e6,1,0],
+ [AR]:[3e-15,1,3],[PAREDE]:[0,1,0],[BEDROCK]:[0,1,0],[AGUA]:[5e-3,80,0],[SALMOURA]:[5,75,0],[OLEO]:[1e-12,2.2,15],[MERCURIO]:[1.04e6,1,0],
  [MEL]:[2e-2,20,0],[ALCOOL]:[1.35e-7,24,10],[LAVA]:[10,10,0],[N2L]:[1e-16,1.43,20],[ALUF]:[4e6,1,0],[ACOF]:[7e5,1,0],
  [ACO]:[6e6,1,0],[CONCRETO]:[1e-6,5,3],[VIDRO]:[1e-12,6,10],[LATA]:[3.5e7,1,0],[BASALTO]:[1e-6,8,15],[RESIST]:[9e5,1,0],
  [MADEIRA]:[1e-12,3,5],[MADEIRAE]:[1e-4,20,0],[ISOPOR]:[1e-16,1.03,2],[ISOPORC]:[1e-15,1.2,4],[GELO]:[1e-8,3.2,10],[HGS]:[4e6,1,0],
  [AREIA]:[1e-9,4,3],[SAL]:[1e-12,6,10],[CACOS]:[1e-12,6,10],[ENTULHO]:[1e-7,5,3],[SUCATA]:[1e5,1,0],[CINZA]:[1e-8,3,3],
- [VAPOR]:[1e-14,1,2.7],[VALC]:[1e-14,1,3],[N2G]:[1e-15,1,3.4],[VHG]:[1e-14,1,1],[FUMACA]:[1e-13,1,2.5],[FOGO]:[1e-4,1,.6],[HELIO]:[1e-15,1,.45],
+ [VAPOR]:[1e-14,1,2.7],[VALC]:[1e-14,1,3],[N2G]:[1e-15,1,3.4],[VHG]:[1e-14,1,1],[FUMACA]:[1e-13,1,2.5],[FOGO]:[1e-4,1,.6],[HELIO]:[1e-15,1,.45],[NEON]:[1e-15,1,.4],
  [COBRE]:[5.96e7,1,0],[COBREF]:[5e6,1,0],[NICROMO]:[9.1e5,1,0],[IMA]:[6.7e5,1,0],[LIMALHA]:[1e3,1,0],[FERROFL]:[1e-8,5,10],
  [FONTEP]:[6e7,1,0],[FONTEN]:[6e7,1,0],[TERRA]:[6e7,1,0],[NUVEM]:[1e-13,1,1],[GRANIZO]:[1e-9,3.2,10],[VIDA]:[.5,50,0],
  [C4]:[1e-12,3,15],[NITRO]:[1e-9,19,10],[HNO3]:[50,50,0],
@@ -390,7 +393,7 @@ function burn(i,m){ // combustível em brasa: emite chama no ar adjacente, aquec
     else if(mj===FOGO) oxy=true;
     else if(ignA[mj]>0&&life[j]===0&&rnd()<fspA[mj]) ignite(j);
     else if(mj===AGUA||mj===SALMOURA){ l=l>10?l-10:0; }
-    else if(kind[mj]!==GAS&&mj!==PAREDE){const dT=FIRE_Q/CvA[mj];T[j]+=dT>15?15:dT;}
+    else if(kind[mj]!==GAS&&!isWall(mj)){const dT=FIRE_Q/CvA[mj];T[j]+=dT>15?15:dT;}
   }
   if(l>0&&rnd()<(oxy?.6:.08)) l--;
   if(l<=0){
@@ -412,7 +415,7 @@ function fire(i){
     const j=nb[n],mj=mat[j];
     if(ignA[mj]>0){ if(life[j]===0&&rnd()<fspA[mj]*(T[j]>ignA[mj]*.8?2:1)) ignite(j); }
     else if(mj===AGUA||mj===SALMOURA) l=l>8?l-8:0;
-    else if(kind[mj]!==GAS&&mj!==PAREDE){ const dT=FIRE_Q/CvA[mj]; T[j]+=dT>15?15:dT; }
+    else if(kind[mj]!==GAS&&!isWall(mj)){ const dT=FIRE_Q/CvA[mj]; T[j]+=dT>15?15:dT; }
   }
   if(rnd()<.7&&l>0) l--;
   if(l<=0){
@@ -557,6 +560,7 @@ function paintAt(cx,cy,tl){
 function paintCell(i,tl,solid){
     const cm=mat[i];
     if(cm===PAREDE||tl===WIND||tl===CYCL||tl===GRAVT) return;
+    if(cm===BEDROCK&&tl!==ERASE) return; // só a borracha remove
     if(tl===ERASE){ if(cm!==AR) setCell(i,AR,293.15); else chg[i]=0; return; }
     if(tl===CHGP||tl===CHGN){ if(!srcA[cm]) chg[i]+=tl===CHGP?qAmt:-qAmt; return; }
     if(tl===SPARK){ ion[i]=1; return; }
@@ -622,7 +626,42 @@ function setLid(v){
   lid=v; updLidBtn();
   for(let x=1;x<W-1;x++) setCell(x,v?PAREDE:AR,293.15);
 }
+// letreiro: texto renderizado numa fonte script (Google Fonts) em 4× resolução → esqueleto (Zhang-Suen) = linha
+// central do tubo → 1 célula de Neônio selada por casca de Vidro (dilatação 3×3)
+function skelZS(b,w,h){
+  const del=[];let ch=true;
+  while(ch){ch=false;for(let ps=0;ps<2;ps++){del.length=0;
+    for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;if(!b[i])continue;
+      const p2=b[i-w],p3=b[i-w+1],p4=b[i+1],p5=b[i+w+1],p6=b[i+w],p7=b[i+w-1],p8=b[i-1],p9=b[i-w-1];
+      const B=p2+p3+p4+p5+p6+p7+p8+p9;if(B<2||B>6)continue;
+      const A=(!p2&&p3)+(!p3&&p4)+(!p4&&p5)+(!p5&&p6)+(!p6&&p7)+(!p7&&p8)+(!p8&&p9)+(!p9&&p2);if(A!==1)continue;
+      if(ps===0?(p2&&p4&&p6)||(p4&&p6&&p8):(p2&&p4&&p8)||(p2&&p6&&p8))continue;
+      del.push(i);}
+    for(const i of del)b[i]=0;if(del.length)ch=true;}}
+}
+// lines: [[texto, y da linha de base, fonte CSS, largura máx., altura máx.], ...] (células)
+function neonText(lines,cx){
+  const SC=4,cw=W*SC,chh=H*SC,c=document.createElement('canvas');c.width=cw;c.height=chh;
+  const x=c.getContext('2d');x.fillStyle='#fff';x.textAlign='center';
+  for(const [t,yb,fam,mw,mh] of lines){x.font='100px '+fam;const w=x.measureText(t).width;
+    x.font=Math.min(100*mw*SC/w,mh*SC*1.3)+'px '+fam;x.fillText(t,cx*SC,yb*SC);}
+  const d=x.getImageData(0,0,cw,chh).data,b=new Uint8Array(cw*chh);for(let i=0;i<b.length;i++)b[i]=d[i*4+3]>110?1:0;
+  skelZS(b,cw,chh);
+  const mk=new Uint8Array(N);
+  for(let y=0;y<chh;y++)for(let xx=0;xx<cw;xx++)if(b[y*cw+xx]){const gx=xx/SC|0,gy=y/SC|0;if(gx>1&&gx<W-2&&gy>1&&gy<H-2)mk[gy*W+gx]=1;}
+  for(let i=0;i<N;i++)if(mk[i]){const gx=i%W,gy=i/W|0;rectM(gx,gy,gx,gy,NEON);
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const j=i+dy*W+dx;if(!mk[j]&&mat[j]!==VIDRO)rectM(gx+dx,gy+dy,gx+dx,gy+dy,VIDRO);}}
+}
 const PRESETS={
+  neonSign(){ // letreiro: tubos de neon selados entre placas de alta tensão; campo acima de ~15% da ruptura → descarga luminescente
+    clearAll(); setVolt(2.5e6);
+    const FT='"Yellowtail",cursive',FS='"Audiowide",sans-serif';
+    const go=()=>neonText([['thermo',86,FT,130,40],['SANDBOX',130,FS,160,24]],100);
+    Promise.all([document.fonts.load('80px '+FT,'thermo'),document.fonts.load('80px '+FS,'SANDBOX')]).then(go,go); // sem rede → fontes do sistema
+    rectM(6,30,193,32,FONTEP); rectM(6,150,193,152,FONTEN);           // placas: campo ~0,2 MV/m (neon rompe ~0,28; ar 3)
+    rectM(20,33,21,38,ACO); rectM(178,33,179,38,ACO); rectM(20,144,21,149,ACO); rectM(178,144,179,149,ACO); // suportes
+    rectM(1,186,198,198,CONCRETO);
+  },
   tank(){
     clearAll();
     rectM(1,182,198,198,MERCURIO); rectM(1,45,198,181,AGUA); rectM(1,36,198,44,OLEO);
@@ -764,7 +803,7 @@ function blend(c1,c2,a){
 function dim(c,f){return pack(((c&255)*f)|0,(((c>>>8)&255)*f)|0,(((c>>>16)&255)*f)|0);}
 const BGC=pack(BG[0],BG[1],BG[2]),RED=pack(255,40,30);
 let pRange=20000,cntP=0,maxT=0,maxG=0;
-const PLC=pack(228,230,255),VPOS=pack(255,78,40),VNEG=pack(40,124,255),YEL=pack(255,226,90),QPOS=pack(255,186,160),QNEG=pack(160,200,255),
+const PLC=pack(228,230,255),NEC=pack(255,74,30),VPOS=pack(255,78,40),VNEG=pack(40,124,255),YEL=pack(255,226,90),QPOS=pack(255,186,160),QNEG=pack(160,200,255),
   NCOL=pack(228,48,44),SCOL=pack(46,98,232),MCOL=pack(96,96,108);
 const MST=[[0,[0,0,4]],[.25,[80,18,123]],[.5,[183,55,121]],[.75,[251,135,97]],[1,[252,253,191]]];
 const mlut=new Uint32Array(256); for(let i=0;i<256;i++){const c=lerpStops(MST,i/255);mlut[i]=pack(c[0]|0,c[1]|0,c[2]|0);}
@@ -783,7 +822,7 @@ function render(){
     const m=mat[i],k=kind[m];
     let c=pal[(m<<3)|(shade[i]&7)];
     const t=T[i];
-    if(m!==AR&&m!==PAREDE){cnt++; if(t>mt)mt=t;}
+    if(m!==AR&&!isWall(m)){cnt++; if(t>mt)mt=t;}
     if(k===LIQ){const g=P[i]-PATM+ap[AF[i]]; if(g>mg)mg=g;}
     if(v===0){
       if(m===IMA) c=poleC(i,c);
@@ -832,8 +871,15 @@ function render(){
       let ti=t|0; if(ti<0)ti=0; else if(ti>4000)ti=4000;
       c=k===GAS?blend(BGC,tlut[ti],m===AR?.7:.85):(k===LIQ?tlut[ti]:blend(tlut[ti],c,.18));
     }
-    const io=ionL[i]; // canal de plasma (raio/arco) visível em todas as vistas
-    if(io>.03){c=blend(c,PLC,io>1?1:io); if(io>.2&&plasmaN<plasmaL.length) plasmaL[plasmaN++]=i;}
+    let io=ionL[i]; // canal de plasma (raio/arco) visível em todas as vistas
+    if(m===NEON){ // descarga luminescente: brilha laranja com ionização ou corrente
+      const ia=(IxC[i]<0?-IxC[i]:IxC[i])+(IyC[i]<0?-IyC[i]:IyC[i]);
+      if(ia>ith){const a=Math.log10(ia/ith)*.25+.3;if(a>io)io=a;}
+      if(elecLive){ // ⚠️ assumido: descarga luminescente (sem corrente/aquecimento) com E acima de ~15% da ruptura
+        let r=gd[i]/1.2;if(r<.05)r=.05;const g=(eMag(i)/(ebA[NEON]*r)-.15)*2.5*(.9+.1*Math.random());
+        if(g>io)io=g>.9?.9:g;}
+      if(io>.03){c=blend(c,NEC,io>1?1:io); if(io>.2&&plasmaN<plasmaL.length) plasmaL[plasmaN++]=i;}
+    }else if(io>.03){c=blend(c,PLC,io>1?1:io); if(io>.2&&plasmaN<plasmaL.length) plasmaL[plasmaN++]=i;}
     u32[i]=c;
   }
   gravPost(u32); // vista de gravidade + lente do buraco negro (grav.js)
@@ -858,6 +904,7 @@ const IC={
  [CONCRETO]:'<svg viewBox="0 0 32 32"><rect x="4" y="7" width="24" height="18" rx="1.5" fill="#9a9890"/><circle cx="9" cy="12" r="1.6" fill="#6e6c66"/><circle cx="16" cy="18" r="2" fill="#77756e"/><circle cx="22" cy="11" r="1.3" fill="#bdbab2"/><circle cx="11" cy="20" r="1.1" fill="#c3c0b8"/><circle cx="24" cy="20" r="1.7" fill="#6e6c66"/><circle cx="18" cy="12" r=".9" fill="#5f5d58"/></svg>',
  [VIDRO]:'<svg viewBox="0 0 32 32"><rect x="6" y="4" width="20" height="24" rx="1.5" fill="rgba(140,205,225,.28)" stroke="#a6e0ef" stroke-width="1.6"/><path d="M10 14l6-6M10 20l11-11M17 24l5-5" stroke="#eaffff" stroke-width="1.4" stroke-linecap="round" opacity=".85"/></svg>',
  [LATA]:'<svg viewBox="0 0 32 32"><defs><linearGradient id="gCan" x1="0" x2="1"><stop offset="0" stop-color="#7f8796"/><stop offset=".45" stop-color="#eef1f5"/><stop offset="1" stop-color="#8d95a3"/></linearGradient></defs><rect x="9" y="6" width="14" height="22" rx="3" fill="url(#gCan)"/><rect x="9" y="12" width="14" height="9" fill="#c8323c"/><ellipse cx="16" cy="6.5" rx="7" ry="2" fill="#d6dbe3" stroke="#7f8796"/><path d="M14 13.5l4 6" stroke="#fff" stroke-width="1.2" opacity=".7"/></svg>',
+ [BEDROCK]:'<svg viewBox="0 0 32 32"><rect x="4" y="4" width="24" height="24" fill="#3a383c"/><path d="M4 4h8v6H4zM16 8h7v5h-7zM8 15h6v6H8zM19 18h9v6h-9zM4 24h5v4H4zM13 23h4v5h-4z" fill="#1e1d20"/><path d="M12 4h4v4h-4zM23 12h5v5h-5zM14 15h5v3h-5z" fill="#5c5a60"/></svg>',
  [BASALTO]:'<svg viewBox="0 0 32 32"><path d="M4 22l4-10 7-5 9 3 4 9-6 7H9z" fill="#4c4646"/><path d="M8 12l7-5 2 8-6 4zM17 15l7-5 4 9z" fill="#625a5a"/><path d="M11 19l6-4 5 9" stroke="#2c2828" fill="none"/></svg>',
  [RESIST]:'<svg viewBox="0 0 32 32"><rect x="3" y="23" width="26" height="4" rx="1" fill="#4a4f5c"/><path d="M4 18l3-8 3 8 3-8 3 8 3-8 3 8 3-8 3 8" fill="none" stroke="#ff6a3d" stroke-width="2.2" stroke-linejoin="round"/><path d="M4 18l3-8 3 8 3-8 3 8 3-8 3 8 3-8 3 8" fill="none" stroke="#ffd08a" stroke-width=".8" stroke-linejoin="round"/></svg>',
  [MADEIRA]:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" fill="#a8703c"/><circle cx="16" cy="16" r="9" fill="none" stroke="#7a4c24" stroke-width="1.2"/><circle cx="16" cy="16" r="6" fill="none" stroke="#7a4c24" stroke-width="1.1"/><circle cx="16" cy="16" r="3" fill="none" stroke="#7a4c24"/><path d="M16 16l7-9" stroke="#5a3616" stroke-width="1.2"/></svg>',
@@ -867,6 +914,7 @@ const IC={
  [SAL]:'<svg viewBox="0 0 32 32"><path d="M15 8l8 4-8 4-8-4z" fill="#ffffff"/><path d="M7 12l8 4v9l-8-4z" fill="#d8dbe6"/><path d="M23 12l-8 4v9l8-4z" fill="#b9bdcc"/><path d="M24 5v4M22 7h4" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/><path d="M25 24l2.5 1.2-2.5 1.2-2.5-1.2z" fill="#e8ebf3"/></svg>',
  [VAPOR]:'<svg viewBox="0 0 32 32"><path d="M10 27c-3-4 3-6 0-10s3-6 0-10M16 27c-3-4 3-6 0-10s3-6 0-10M22 27c-3-4 3-6 0-10s3-6 0-10" stroke="#dfe8f2" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
  [HELIO]:'<svg viewBox="0 0 32 32"><ellipse cx="16" cy="12" rx="8" ry="9.5" fill="#ec9bd0"/><path d="M15 21.3h2l-1 1.6z" fill="#ec9bd0"/><path d="M16 23c-2 2 2 3 0 6" stroke="#c9ccd6" fill="none"/><ellipse cx="13" cy="8.5" rx="2" ry="3" fill="#fbd6ee"/><text x="16" y="15" font-size="6.5" text-anchor="middle" fill="#7a2a5f" font-family="sans-serif" font-weight="700">He</text></svg>',
+ [NEON]:'<svg viewBox="0 0 32 32"><rect x="4" y="7" width="24" height="18" rx="4" fill="#1a1216" stroke="#3a2a30"/><path d="M9 21v-10l7 10v-10M20 21v-10h4M20 16h3M20 21h4" stroke="#ff4a1e" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/><path d="M9 21v-10l7 10v-10M20 21v-10h4M20 16h3M20 21h4" stroke="#ffb08a" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
  [FOGO]:'<svg viewBox="0 0 32 32"><path d="M16 3c1 6 9 9 9 17a9 9 0 0 1-18 0c0-5 3-7 4-10 1 3 2 4 3 4-1-4 0-8 2-11z" fill="#ff6a1a"/><path d="M16 14c.6 3 5 5 5 9a5 5 0 0 1-10 0c0-2.5 1.5-3.5 2-5 .8 1.4 1.4 2 2 2-.5-2 0-4 1-6z" fill="#ffd34a"/></svg>',
  [ERASE]:'<svg viewBox="0 0 32 32"><path d="M18 5l9 9-12 12H9l-5-5z" fill="#f08fa8"/><path d="M11.5 11.5l9 9" stroke="#fff" stroke-width="3"/><path d="M8 27h18" stroke="#7d8597" stroke-width="1.5" stroke-linecap="round"/></svg>',
  [HEAT]:'<svg viewBox="0 0 32 32"><rect x="13" y="4" width="6" height="17" rx="3" fill="none" stroke="#e6e9ef" stroke-width="1.5"/><circle cx="16" cy="24" r="5" fill="#ff4a3a"/><rect x="14.6" y="10" width="2.8" height="12" fill="#ff4a3a"/><path d="M24 8c-1.5 1.5 1.5 3 0 4.5M27 6c-1.5 1.5 1.5 3 0 4.5" stroke="#ff9a6a" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>',
@@ -906,6 +954,7 @@ const DESC={
  [CONCRETO]:'σ 30 MPa · vira entulho',
  [VIDRO]:'σ 2 MPa · quebra por pressão ou choque térmico',
  [LATA]:'σ 110 kPa · parede fina, amassa · funde 660 °C',
+ [BEDROCK]:'indestrutível · nada atravessa (matéria, ar, calor, radiação, explosões) · só a borracha remove',
  [BASALTO]:'σ 150 MPa · funde ~1200 °C',
  [RESIST]:'elemento aquecedor na temperatura ajustada',
  [MADEIRA]:'ρ 600 · flutua · encharca sob >150 kPa · queima 300 °C',
@@ -915,6 +964,7 @@ const DESC={
  [SAL]:'ρ 2160 · dissolve na água · derrete gelo (endotérmico)',
  [VAPOR]:'gás M 18 g/mol · condensa abaixo de Teb(P)',
  [HELIO]:'gás M 4 g/mol · sobe rápido',
+ [NEON]:'gás nobre M 20 g/mol · rompe com campo baixo (~0,4 MV/m) · brilha laranja-avermelhado com corrente/ionização',
  [FOGO]:'combustão · gás quente sobe',
  [ERASE]:'remove',[HEAT]:'injeta calor: ΔT = Q/(ρc)',[COOL]:'retira calor',
  [COBRE]:'σ 5,96·10⁷ S/m · ótimo condutor · funde 1085 °C',
@@ -939,9 +989,9 @@ const DESC={
 };
 const GROUPS=[
  ['Líquidos',[AGUA,SALMOURA,OLEO,MERCURIO,MEL,ALCOOL,LAVA,N2L]],
- ['Sólidos fixos',[ACO,CONCRETO,VIDRO,LATA,BASALTO,RESIST]],
+ ['Sólidos fixos',[ACO,CONCRETO,VIDRO,LATA,BASALTO,RESIST,BEDROCK]],
  ['Soltos',[MADEIRA,ISOPOR,GELO,AREIA,SAL]],
- ['Gases',[VAPOR,HELIO,FOGO]],
+ ['Gases',[VAPOR,HELIO,NEON,FOGO]],
  ['Elétrica',[COBRE,NICROMO,FONTEP,FONTEN,TERRA]],
  ['Magnetismo',[IMA,LIMALHA,FERROFL]],
  ['Clima',[NUVEM,GRANIZO]],
@@ -950,7 +1000,7 @@ const GROUPS=[
  ['Explosivos',[C4,NITRO,HNO3]],
  ['Ferramentas',[ERASE,HEAT,COOL,CHGP,CHGN,FLIP,SPARK,WIND,CYCL,GRAVT]]
 ];
-const SUB={[ERASE]:'',[HEAT]:'+Q',[COOL]:'−Q',[RESIST]:'aquecedor',[FOGO]:'~1100 °C',[VAPOR]:'gás',[HELIO]:'gás',
+const SUB={[ERASE]:'',[BEDROCK]:'indestrutível',[HEAT]:'+Q',[COOL]:'−Q',[RESIST]:'aquecedor',[FOGO]:'~1100 °C',[VAPOR]:'gás',[HELIO]:'gás',[NEON]:'brilha',
   [COBRE]:'6·10⁷ S/m',[NICROMO]:'9·10⁵ S/m',[FONTEP]:'+V/2',[FONTEN]:'−V/2',[TERRA]:'0 V',[IMA]:'1,2 T',[LIMALHA]:'ferromag.',
   [FERROFL]:'ferromag.',[NUVEM]:'gás',[GRANIZO]:'ρ 700',[VIDA]:'B3/S23',[CHGP]:'+q',[CHGN]:'−q',[FLIP]:'±',[SPARK]:'plasma',[C4]:'2,1 kg TNT',[NITRO]:'2,4 kg TNT',[HNO3]:'oxidante',[WIND]:'ar',[CYCL]:'vórtice'};
 const NAMES={[ERASE]:'Borracha',[HEAT]:'Aquecer',[COOL]:'Resfriar',[CHGP]:'Carga +',[CHGN]:'Carga −',[FLIP]:'Inverter polo',[SPARK]:'Faísca',[WIND]:'Vento',[CYCL]:'Ciclone'};
@@ -1149,7 +1199,7 @@ function zoomTo(z,x,y){zT={z:Math.max(1,Math.min(ZMAX,z)),x,y};}
 function zoomAnim(){if(!zT)return;const a=.2;Z+=(zT.z-Z)*a;ZX+=(zT.x-ZX)*a;ZY+=(zT.y-ZY)*a;
   if(Math.abs(zT.z-Z)<.002&&Math.abs(zT.x-ZX)<.02&&Math.abs(zT.y-ZY)<.02){Z=zT.z;ZX=zT.x;ZY=zT.y;zT=null;}applyZoom();}
 function focusAt(i){ // enquadra o corpo conexo de mesmo material
-  if(i<0)return;const m=mat[i];if(m===AR||m===PAREDE){zoomTo(1,0,0);return;}
+  if(i<0)return;const m=mat[i];if(m===AR||isWall(m)){zoomTo(1,0,0);return;}
   const seen=new Uint8Array(N),q=new Int32Array(N);let h=0,t=0,x0=W,x1=0,y0=H,y1=0;q[t++]=i;seen[i]=1;
   while(h<t){const c=q[h++],x=c%W,y=c/W|0;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
     for(const n of [c-1,c+1,c-W,c+W])if(n>=0&&n<N&&!seen[n]&&mat[n]===m){seen[n]=1;q[t++]=n;}}
@@ -1200,7 +1250,7 @@ stage.addEventListener('pointerdown',e=>{stage.setPointerCapture(e.pointerId);up
   if(e.button===1||e.altKey){e.preventDefault();panning={x:e.clientX,y:e.clientY,zx:ZX,zy:ZY};zT=null;stage.classList.add('pan','drag');brushEl.style.display='none';return;}
   if(e.ctrlKey||e.metaKey){pinI=hoverI;return;}
   shiftKey=e.shiftKey;erasing=e.button===2;
-  if((erasing?tool2:tool)===WIND){windDX=0;windDY=0;}lastX=curX;lastY=curY;lastPaintI=hoverI;
+  if((erasing?tool2:tool)===WIND){windDX=0;windDY=0;windS=0;}lastX=curX;lastY=curY;lastPaintI=hoverI;
   strokeId=strokeId>=65535?1:strokeId+1;pushUndo();
   const tl=erasing?tool2:tool;
   if(drawMode==='fill'){bucket(curX,curY,tl);return;}

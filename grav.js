@@ -129,7 +129,7 @@ function gravStep(){
     const R=rsOf(s.M)/DX,Ra=Math.max(3,3*R),Rb=Math.ceil(Ra)+1,R2=Math.max(R,.75)**2,Ra2=Ra*Ra;
     const x0=Math.max(1,(s.x-Rb)|0),x1=Math.min(W-2,(s.x+Rb)|0),y0=Math.max(1,(s.y-Rb)|0),y1=Math.min(H-2,(s.y+Rb)|0);
     let dm=0;
-    for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const i=y*W+x,m=mat[i];if(m===PAREDE)continue;
+    for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const i=y*W+x,m=mat[i];if(isWall(m))continue;
       const dx=x+.5-s.x,dy=y+.5-s.y,d2=dx*dx+dy*dy;if(d2>Ra2)continue;
       const k=kind[m];
       if(d2<=R2){ // cruzou o horizonte: massa-energia vai para M (inclui energia térmica E = c·m·T, desprezível)
