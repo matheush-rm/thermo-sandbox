@@ -7,7 +7,7 @@ const AR=0,PAREDE=1,AGUA=2,SALMOURA=3,OLEO=4,MERCURIO=5,MEL=6,ALCOOL=7,LAVA=8,N2
   GELO=22,HGS=23,AREIA=24,SAL=25,CACOS=26,ENTULHO=27,SUCATA=28,CINZA=29,VAPOR=30,VALC=31,N2G=32,VHG=33,
   FUMACA=34,FOGO=35,HELIO=36,COBRE=37,COBREF=38,NICROMO=39,IMA=40,LIMALHA=41,FERROFL=42,FONTEP=43,FONTEN=44,
   TERRA=45,NUVEM=46,GRANIZO=47,VIDA=48,C4=49,NITRO=50,HNO3=51,
-  U235=52,PU239=53,UNAT=54,CORIO=55,PFIS=56,RADIO=57,RADONIO=58,COBALTO=59,CESIO=60,CHUMBO=61,CHUMBOF=62,GRAFITE=63,BORO=64,AMBE=65,VIDAM=66,NEON=67,BEDROCK=68,NM=69;
+  U235=52,PU239=53,UNAT=54,CORIO=55,PFIS=56,RADIO=57,RADONIO=58,COBALTO=59,CESIO=60,CHUMBO=61,CHUMBOF=62,GRAFITE=63,BORO=64,AMBE=65,VIDAM=66,NEON=67,BEDROCK=68,ESPO=69,ESPX=70,NM=71;
 const ERASE=100,HEAT=101,COOL=102,CHGP=103,CHGN=104,FLIP=105,SPARK=106,WIND=107,CYCL=108;
 const isWall=m=>m===PAREDE||m===BEDROCK; // indestrutíveis: nada atravessa; bedrock só sai com a borracha
 const GRAVT=120; // ferramenta Gravidade (grav.js)
@@ -60,6 +60,9 @@ D[NICROMO]  ={n:'Nicromo',kind:FIX,rho:8400,k:11.3,C:3.8,col:[126,116,104],var:6
 D[IMA]      ={n:'Ímã (NdFeB)',kind:FIX,rho:7500,k:9,C:3.3,col:[78,80,90],var:4,hi:[1,1583,0,ACOF,300]};
 D[LIMALHA]  ={n:'Limalha de ferro',kind:POW,rho:3900,k:5,C:1.8,col:[74,76,84],var:22,hi:[1,1811,0,ACOF,250]};
 D[FERROFL]  ={n:'Ferrofluido',kind:LIQ,rho:1250,k:.2,C:2.0,beta:7e-4,kap:6e-10,mob:.5,disp:3,col:[26,24,30],var:6};
+// bobina (espira): seção de fio esmaltado atravessando a fatia (⊙ saindo, ⊗ entrando da tela); elétrico/magnético em em.js
+D[ESPO]     ={n:'Bobina ⊙',kind:FIX,rho:8900,k:380,C:3.45,col:[232,138,72],var:8,hi:[1,1358,0,COBREF,530]};
+D[ESPX]     ={n:'Bobina ⊗',kind:FIX,rho:8900,k:380,C:3.45,col:[138,70,46],var:8,hi:[1,1358,0,COBREF,530]};
 D[FONTEP]   ={n:'Polo + (fonte)',kind:FIX,rho:8000,k:50,C:3.5,col:[214,52,48],var:4};
 D[FONTEN]   ={n:'Polo − (fonte)',kind:FIX,rho:8000,k:50,C:3.5,col:[48,92,222],var:4};
 D[TERRA]    ={n:'Terra (aterramento)',kind:FIX,rho:2000,k:1,C:2,col:[72,98,58],var:10};
@@ -99,12 +102,14 @@ const EL={
  [FONTEP]:[6e7,1,0],[FONTEN]:[6e7,1,0],[TERRA]:[6e7,1,0],[NUVEM]:[1e-13,1,1],[GRANIZO]:[1e-9,3.2,10],[VIDA]:[.5,50,0],
  [C4]:[1e-12,3,15],[NITRO]:[1e-9,19,10],[HNO3]:[50,50,0],
  [U235]:[3.6e6,1,0],[PU239]:[6.7e5,1,0],[UNAT]:[3.6e6,1,0],[CORIO]:[1e5,1,0],[PFIS]:[1e-6,5,3],[RADIO]:[1e-6,6,5],[RADONIO]:[1e-14,1,2.5],
- [COBALTO]:[1.6e7,1,0],[CESIO]:[1e-8,6,10],[CHUMBO]:[4.8e6,1,0],[CHUMBOF]:[1e6,1,0],[GRAFITE]:[1e5,1,0],[BORO]:[1e2,8,0],[AMBE]:[1e-6,5,5],[VIDAM]:[.5,50,0]
+ [COBALTO]:[1.6e7,1,0],[CESIO]:[1e-8,6,10],[CHUMBO]:[4.8e6,1,0],[CHUMBOF]:[1e6,1,0],[GRAFITE]:[1e5,1,0],[BORO]:[1e2,8,0],[AMBE]:[1e-6,5,5],[VIDAM]:[.5,50,0],
+ [ESPO]:[0,3.5,0],[ESPX]:[0,3.5,0] // esmalte isola; condução só pelos terminais (em.js, bobinas)
 };
 // coef. térmico da resistividade (1/K)
 const ALPHA={[COBRE]:.0039,[LATA]:.0039,[ACO]:.005,[NICROMO]:.0004,[MERCURIO]:.0009,[IMA]:.001,[ALUF]:.001,[COBREF]:.001,[ACOF]:.001};
-// magnético: [1 = ferromagneto mole / 2 = ímã permanente, Ms saturação A/m, χ efetivo (com desmagnetização), T Curie K]
-const MG={[ACO]:[1,1.6e6,2.9,1043],[LIMALHA]:[1,8e5,5,1043],[FERROFL]:[1,4.5e4,1.2,850],[IMA]:[2,9.5e5,0,583]};
+// magnético: [1 = ferromagneto mole / 2 = ímã permanente, Ms saturação A/m, χ efetivo (com desmagnetização), T Curie K,
+//   χ do material (sólidos: χ efetivo sai da forma do corpo ao longo do campo, em em.js)]
+const MG={[ACO]:[1,1.6e6,2.9,1043,1000],[LIMALHA]:[1,8e5,5,1043],[FERROFL]:[1,4.5e4,1.2,850],[IMA]:[2,9.5e5,0,583]};
 const SRC={[FONTEP]:1,[FONTEN]:2,[TERRA]:3}; // potencial fixo: +V/2, −V/2, 0
 
 // compila em arrays tipados
@@ -116,10 +121,10 @@ const kind=new Uint8Array(NM),rho0=new Float32Array(NM),betaA=new Float32Array(N
   loTy=new Uint8Array(NM),loT=new Float32Array(NM),loLm=new Float64Array(NM),loTo=new Uint8Array(NM),loL=new Float32Array(NM),loCap=new Float32Array(NM),
   actA=new Uint8Array(NM),fillA=new Float32Array(NM),
   sigA=new Float64Array(NM),epsA=new Float32Array(NM),ebA=new Float32Array(NM),alA=new Float32Array(NM),srcA=new Uint8Array(NM),
-  mgA=new Uint8Array(NM),msA=new Float32Array(NM),chiA=new Float32Array(NM),tcA=new Float32Array(NM),mgMov=new Uint8Array(NM);
+  mgA=new Uint8Array(NM),msA=new Float32Array(NM),chiA=new Float32Array(NM),tcA=new Float32Array(NM),mgMov=new Uint8Array(NM),chiT=new Float32Array(NM);
 for(let m=0;m<NM;m++){const d=D[m],e=EL[m],g=MG[m];
   sigA[m]=e[0]; epsA[m]=e[1]; ebA[m]=e[2]*1e6; alA[m]=ALPHA[m]||0; srcA[m]=SRC[m]||0;
-  if(g){mgA[m]=g[0];msA[m]=g[1];chiA[m]=g[2];tcA[m]=g[3];mgMov[m]=g[0]===1&&d.kind!==FIX?1:0;}
+  if(g){mgA[m]=g[0];msA[m]=g[1];chiA[m]=g[2];tcA[m]=g[3];mgMov[m]=g[0]===1&&d.kind!==FIX?1:0;chiT[m]=d.kind===FIX&&g[4]?g[4]:0;}
   kind[m]=d.kind; rho0[m]=d.rho||0; betaA[m]=d.beta||1e-5; bkA[m]=d.kap?d.beta/d.kap:0;
   kc[m]=d.k*HS; CvA[m]=d.C||0; molar[m]=d.M||0; gexp[m]=d.gam?(d.gam-1)/d.gam:0; cpgA[m]=d.cpg||0;
   mobA[m]=d.mob||1; dispA[m]=d.disp||1; strA[m]=d.str||0; crushA[m]=d.crush||0;
@@ -569,6 +574,7 @@ function paintCell(i,tl,solid){
       chg[i]=-chg[i];
       if(cm===IMA){mxA[i]=-mxA[i];myA[i]=-myA[i];}
       else if(cm===FONTEP) mat[i]=FONTEN; else if(cm===FONTEN) mat[i]=FONTEP;
+      else if(cm===ESPO) mat[i]=ESPX; else if(cm===ESPX) mat[i]=ESPO;
       return;
     }
     if(tl===HEAT||tl===COOL){
@@ -714,6 +720,35 @@ const PRESETS={
     rectM(130,47,132,112,COBRE); rectM(158,112,160,147,COBRE);
     rectM(60,90,120,110,LIMALHA);
   },
+  electromagnet(){ // eletroímã montado à mão: seção de um solenoide (⊙ em cima, ⊗ embaixo) em volta de um núcleo de aço
+    clearAll(); setVolt(1000);
+    rectM(64,96,136,104,ACO);                                          // núcleo (sai das duas pontas da bobina)
+    rectM(72,95,128,95,ESPO); rectM(72,105,128,105,ESPX);              // enrolamento: 57 seções de cada lado
+    rectM(36,58,50,64,FONTEP); rectM(36,136,50,142,FONTEN);
+    rectM(51,60,73,61,COBRE); rectM(72,62,73,94,COBRE);                // + → ponta de cima da bobina
+    rectM(127,106,128,139,COBRE); rectM(51,138,126,139,COBRE);         // ponta de baixo → −
+    rectM(131,112,172,113,VIDRO); rectM(134,109,168,111,LIMALHA);      // prateleiras com limalha logo abaixo dos polos
+    rectM(28,112,69,113,VIDRO); rectM(32,109,66,111,LIMALHA);
+  },
+  emLab(){ // oficina: eletroímã em ferradura sobre bandeja de limalha + guindaste (eletroímã vertical) sobre caçamba de limalha
+    clearAll(); setVolt(1000);
+    // ferradura: jugo + 2 pernas de aço; cada perna com sua bobina (⊗|⊙ e ⊙|⊗ → polos N e S embaixo), em série
+    rectM(30,40,80,47,ACO); rectM(30,48,37,90,ACO); rectM(73,48,80,90,ACO);
+    rectM(29,52,29,86,ESPX); rectM(38,52,38,86,ESPO);                   // perna esquerda: campo para baixo → N na ponta
+    rectM(72,52,72,86,ESPO); rectM(81,52,81,86,ESPX);                   // perna direita: campo para cima → S na ponta
+    rectM(8,20,17,26,FONTEP); rectM(12,27,13,51,COBRE); rectM(12,52,28,52,COBRE);  // + → topo da bobina esquerda
+    rectM(39,86,55,86,COBRE); rectM(55,53,55,85,COBRE); rectM(55,52,71,52,COBRE);  // fim da esquerda → topo da direita
+    rectM(82,86,96,86,COBRE); rectM(95,87,96,139,COBRE); rectM(91,140,100,146,FONTEN); // fim da direita → −
+    rectM(24,101,86,102,VIDRO); rectM(24,94,25,100,VIDRO); rectM(85,94,86,100,VIDRO);  // bandeja
+    rectM(26,97,84,100,LIMALHA);
+    // guindaste: eletroímã vertical (N embaixo) sobre uma caçamba de limalha
+    rectM(140,36,149,94,ACO);
+    rectM(139,40,139,90,ESPX); rectM(150,40,150,90,ESPO);
+    rectM(120,20,130,26,FONTEP); rectM(125,27,126,39,COBRE); rectM(125,40,138,40,COBRE);
+    rectM(151,90,175,90,COBRE); rectM(174,91,175,139,COBRE); rectM(170,140,179,146,FONTEN);
+    rectM(122,118,168,119,ACO); rectM(122,96,123,117,ACO); rectM(167,96,168,117,ACO); // caçamba aberta em cima
+    rectM(124,101,166,117,LIMALHA);
+  },
   magnets(){ // ímãs, limalha mostrando o campo, ferrofluido e barra de aço
     clearAll();
     magRect(40,60,70,72,1); magRect(130,60,160,72,3);                // polos N frente a frente: repelem campo
@@ -826,6 +861,7 @@ function render(){
     if(k===LIQ){const g=P[i]-PATM+ap[AF[i]]; if(g>mg)mg=g;}
     if(v===0){
       if(m===IMA) c=poleC(i,c);
+      else if((m===ESPO||m===ESPX)&&IzC[i]!==0){let a=Math.log10((IzC[i]<0?-IzC[i]:IzC[i])/ESP_N)*.1+.08;if(a>.4)a=.4;if(a>0)c=blend(c,YEL,a);} // espira com corrente
       if(m===FOGO){const f=(life[i]&7)/7; c=pack(255,(110+f*120)|0,(20+f*40)|0);}
       else if(t>700&&k!==GAS){const ti=t>4000?4000:t|0,a=glA[ti];c=blend(c,pack(glR[ti],glG[ti],glB[ti]),a);}
       else if(m===AR&&t>330){let a=(t-330)/900;if(a>.5)a=.5;c=blend(c,pack(150,60,20),a);}
@@ -841,7 +877,7 @@ function render(){
       const vv=Vf[i]*ivs; let s=vv<0?-vv:vv; s=s>1?1:Math.sqrt(s);
       const vc=blend(BGC,vv>=0?VPOS:VNEG,s);
       c=k===GAS?vc:blend(dim(c,.5),vc,.55);
-      const ia=(IxC[i]<0?-IxC[i]:IxC[i])+(IyC[i]<0?-IyC[i]:IyC[i]);
+      const ia=(IxC[i]<0?-IxC[i]:IxC[i])+(IyC[i]<0?-IyC[i]:IyC[i])+(IzC[i]<0?-IzC[i]:IzC[i])/ESP_N;
       if(ia>ith){let a=Math.log10(ia/ith)*.2+.3;if(a>.9)a=.9;c=blend(c,YEL,a);}
       const qq=chg[i]; if(qq>qth||qq<-qth){let a=Math.log10((qq<0?-qq:qq)/qth)*.25+.45;if(a>1)a=1;c=blend(c,qq>0?QPOS:QNEG,a);}
     }else if(v===4){ // |B| (escala log) com polos
@@ -922,6 +958,8 @@ const IC={
  [COBRE]:'<svg viewBox="0 0 32 32"><g fill="none" stroke="#d27a42" stroke-width="2.6"><ellipse cx="10" cy="16" rx="3" ry="8"/><ellipse cx="16" cy="16" rx="3" ry="8"/><ellipse cx="22" cy="16" rx="3" ry="8"/></g><path d="M3 16h4M25 16h4" stroke="#f0a070" stroke-width="2.2" stroke-linecap="round"/></svg>',
  [NICROMO]:'<svg viewBox="0 0 32 32"><path d="M3 20h4l2-8 3 12 3-12 3 12 3-12 3 12 2-4h3" fill="none" stroke="#ff7a3a" stroke-width="2.2" stroke-linejoin="round"/><path d="M3 20h4l2-8 3 12 3-12 3 12 3-12 3 12 2-4h3" fill="none" stroke="#ffd9a0" stroke-width=".8" stroke-linejoin="round"/></svg>',
  [IMA]:'<svg viewBox="0 0 32 32"><rect x="4" y="10" width="12" height="12" fill="#e03530"/><rect x="16" y="10" width="12" height="12" fill="#2e62e8"/><text x="10" y="19.5" font-size="8" text-anchor="middle" fill="#fff" font-family="sans-serif" font-weight="700">N</text><text x="22" y="19.5" font-size="8" text-anchor="middle" fill="#fff" font-family="sans-serif" font-weight="700">S</text></svg>',
+ [ESPO]:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="#5c2c18" stroke="#ec9a5e" stroke-width="2.6"/><circle cx="16" cy="16" r="3.8" fill="#ffd9b4"/></svg>',
+ [ESPX]:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="#4a2214" stroke="#b8683f" stroke-width="2.6"/><path d="M11.5 11.5l9 9M20.5 11.5l-9 9" stroke="#ffd9b4" stroke-width="2.6" stroke-linecap="round"/></svg>',
  [LIMALHA]:'<svg viewBox="0 0 32 32"><g stroke="#9aa0ac" stroke-width="1.6" stroke-linecap="round"><path d="M6 8l3 2M13 6l3 1M21 7l3 2M5 15l3 1M12 13l3 2M20 14l3 1M26 16l2 2M7 22l3 1M14 21l3 2M22 22l3 1M10 27l3 1M18 27l3 1"/></g></svg>',
  [FERROFL]:'<svg viewBox="0 0 32 32"><path d="M4 26c3 0 4-3 6-3 1-6 2-12 3-15 1 3 2 9 3 15 1-5 2-10 3-12 1 2 2 7 3 12 2 0 3 3 6 3z" fill="#1c1a22" stroke="#6a6680"/></svg>',
  [FONTEP]:'<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="#d6342f"/><path d="M16 10v12M10 16h12" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>',
@@ -970,6 +1008,8 @@ const DESC={
  [COBRE]:'σ 5,96·10⁷ S/m · ótimo condutor · funde 1085 °C',
  [NICROMO]:'σ 9,1·10⁵ S/m · resistivo → aquece por efeito Joule',
  [IMA]:'NdFeB · Br ≈ 1,2 T · perde magnetização acima de 310 °C (Curie) · direção N no seletor "Polo N"',
+ [ESPO]:'fio de cobre esmaltado enrolado, visto em corte: corrente saindo da tela · desenhe ⊙ de um lado do núcleo e ⊗ do outro (= eletroímã) · ligue as duas pontas com cobre na fonte · trechos próximos são a mesma bobina, em série · sentido vale com a corrente entrando pela ponta de cima',
+ [ESPX]:'fio de cobre esmaltado enrolado, visto em corte: corrente entrando na tela · use com ⊙ do outro lado do núcleo · "Inverter polo" troca ⊙↔⊗',
  [LIMALHA]:'ferro em pó · atraído por ∇|B| · mostra o campo',
  [FERROFL]:'líquido magnético · Ms 45 kA/m · sobe até o ímã',
  [FONTEP]:'terminal positivo: potencial fixo +V/2 (ajuste "Tensão")',
@@ -979,7 +1019,7 @@ const DESC={
  [GRANIZO]:'graupel · colisões com cristais de gelo transferem carga (− abaixo de −15 °C, + acima)',
  [VIDA]:'jogo da vida B3/S23 · nasce só no ar entre −5 e 60 °C · morre por calor, frio, fogo, raio, choque (>20 mA), afogamento e esmagamento',
  [CHGP]:'deposita carga positiva (C/célula ajustável)',[CHGN]:'deposita carga negativa',
- [FLIP]:'inverte: sinal da carga, polo do ímã, polaridade da fonte',
+ [FLIP]:'inverte: sinal da carga, polo do ímã, polaridade da fonte, sentido da bobina',
  [SPARK]:'ioniza o meio (gatilho de arco)',
  [C4]:'explosivo plástico (RDX) · 2,1 kg TNT/célula · insensível a choque; detona com chama, faísca/raio ou >250 °C · gruda (sólido fixo)',
  [NITRO]:'explosivo líquido · 2,4 kg TNT/célula · sensível a choque (onda >150 kPa), chama, faísca ou >215 °C',
@@ -993,7 +1033,7 @@ const GROUPS=[
  ['Soltos',[MADEIRA,ISOPOR,GELO,AREIA,SAL]],
  ['Gases',[VAPOR,HELIO,NEON,FOGO]],
  ['Elétrica',[COBRE,NICROMO,FONTEP,FONTEN,TERRA]],
- ['Magnetismo',[IMA,LIMALHA,FERROFL]],
+ ['Magnetismo',[IMA,ESPO,ESPX,LIMALHA,FERROFL]],
  ['Clima',[NUVEM,GRANIZO]],
  ['Vida',[VIDA,VIDAM]],
  ['Radiação',[U235,PU239,UNAT,AMBE,RADIO,COBALTO,CESIO,GRAFITE,BORO,CHUMBO,PFIS,CORIO,RADONIO]],
@@ -1001,7 +1041,7 @@ const GROUPS=[
  ['Ferramentas',[ERASE,HEAT,COOL,CHGP,CHGN,FLIP,SPARK,WIND,CYCL,GRAVT]]
 ];
 const SUB={[ERASE]:'',[BEDROCK]:'indestrutível',[HEAT]:'+Q',[COOL]:'−Q',[RESIST]:'aquecedor',[FOGO]:'~1100 °C',[VAPOR]:'gás',[HELIO]:'gás',[NEON]:'brilha',
-  [COBRE]:'6·10⁷ S/m',[NICROMO]:'9·10⁵ S/m',[FONTEP]:'+V/2',[FONTEN]:'−V/2',[TERRA]:'0 V',[IMA]:'1,2 T',[LIMALHA]:'ferromag.',
+  [COBRE]:'6·10⁷ S/m',[NICROMO]:'9·10⁵ S/m',[FONTEP]:'+V/2',[FONTEN]:'−V/2',[TERRA]:'0 V',[IMA]:'1,2 T',[ESPO]:'fio saindo',[ESPX]:'fio entrando',[LIMALHA]:'ferromag.',
   [FERROFL]:'ferromag.',[NUVEM]:'gás',[GRANIZO]:'ρ 700',[VIDA]:'B3/S23',[CHGP]:'+q',[CHGN]:'−q',[FLIP]:'±',[SPARK]:'plasma',[C4]:'2,1 kg TNT',[NITRO]:'2,4 kg TNT',[HNO3]:'oxidante',[WIND]:'ar',[CYCL]:'vórtice'};
 const NAMES={[ERASE]:'Borracha',[HEAT]:'Aquecer',[COOL]:'Resfriar',[CHGP]:'Carga +',[CHGN]:'Carga −',[FLIP]:'Inverter polo',[SPARK]:'Faísca',[WIND]:'Vento',[CYCL]:'Ciclone'};
 NAMES[GRAVT]='Gravidade';SUB[GRAVT]='massa';
@@ -1307,6 +1347,13 @@ function updReadout(){
     if(ionL[i]>.02) h+=kv('ionização',(ionL[i]*100).toFixed(0)+'%');
   }
   if(magLive) h+=kv('|B|',fmtB(Bfine[i]));
+  if(m===ESPO||m===ESPX){const C=coilInfo(i);
+    if(C){h+=kv('bobina','≈ '+Math.round(C.cells.length*ESP_N/2)+' voltas ('+C.cells.length+' trechos)');
+      h+=kv('R bobina',si(C.R,'Ω'));
+      if(C.ng!==2) h+=kv('terminais',C.ng===0?'nenhum: encoste cobre nas 2 pontas':C.ng===1?'só 1: falta ligar a outra ponta':C.ng+': ligue só 2 pontas');
+      else if(Math.abs(C.I)>1e-6){h+=kv('I no fio',fmtI(Math.abs(C.I)));h+=kv('aqui',(mat[i]===ESPX)===(C.I>0)?'⊗ entrando':'⊙ saindo');}
+      else h+=kv('I no fio','0 (sem tensão)');}
+    else h+=kv('bobina','—');}
   if(m===IMA) h+=kv('M',mxA[i]||myA[i]?si(Math.hypot(mxA[i],myA[i]),'A/m')+' '+(myA[i]<0?'↑':myA[i]>0?'↓':mxA[i]>0?'→':'←'):'desmagnetizado');
   h+=gravReadout(i);
   h+=radReadout(i,m);
@@ -1320,7 +1367,7 @@ const snapArrs=()=>({mat,shade,life,T,tOld,pp,gd,lat,st,P,chg,ion,mxA,myA,Vf,ion
 const UNDO_MAX=20,undoS=[],redoS=[];
 function snapshot(){const o={lid,storm,grav:gravGet()},a=snapArrs();for(const k in a)o[k]=a[k].slice();return o;}
 function restore(sn){const a=snapArrs();for(const k in a)a[k].set(sn[k]);
-  lid=sn.lid;updLidBtn();setStorm(sn.storm);gravSet(sn.grav);IxC.fill(0);IyC.fill(0);airReset();radReset();updHist();}
+  lid=sn.lid;updLidBtn();setStorm(sn.storm);gravSet(sn.grav);IxC.fill(0);IyC.fill(0);coilClear();airReset();radReset();updHist();}
 function pushUndo(){undoS.push(snapshot());if(undoS.length>UNDO_MAX)undoS.shift();redoS.length=0;updHist();}
 function undo(){if(!undoS.length)return;redoS.push(snapshot());restore(undoS.pop());}
 function redo(){if(!redoS.length)return;undoS.push(snapshot());restore(redoS.pop());}
